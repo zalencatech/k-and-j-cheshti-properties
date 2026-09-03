@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import {
   LogOut, AlertTriangle, Home, Building2, PlusCircle, BarChart3,
   Wallet, Receipt, FileText, Settings as SettingsIcon, Printer,
-  ChevronRight, Loader2, X, CheckCircle2,
+  ChevronRight, ChevronDown, Loader2, X, CheckCircle2,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -93,8 +93,72 @@ export default function Page() {
 
 function FullscreenLoader({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-[var(--text-secondary)]">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text-secondary)]">
       <Loader2 className="animate-spin mr-2" size={18} /> {label}
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// CUSTOM ANIMATED DROPDOWN (drop-in replacement for native <select>, same
+// value/onChange/children API — pass <option> children exactly as before)
+// ---------------------------------------------------------------------------
+function Dropdown({ value, onChange, children, className, placeholder }: any) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const options = (Array.isArray(children) ? children : [children])
+    .filter(Boolean)
+    .map((c: any) => ({ value: c.props.value, label: c.props.children, disabled: c.props.disabled }));
+
+  const current = options.find((o: any) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`${className} flex items-center justify-between gap-2 cursor-pointer select-none text-left`}
+      >
+        <span className={current && current.value ? "" : "text-[var(--text-secondary)]"}>
+          {current ? current.label : placeholder || "Select..."}
+        </span>
+        <ChevronDown size={14} className={`text-gold shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-2 w-full glass-strong rounded-xl p-1.5 max-h-64 overflow-y-auto dropdown-pop">
+          {options.map((o: any, i: number) => (
+            <button
+              key={i}
+              type="button"
+              disabled={o.disabled}
+              onClick={() => {
+                if (o.disabled) return;
+                onChange({ target: { value: o.value } });
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                o.disabled
+                  ? "opacity-30 cursor-not-allowed"
+                  : o.value === value
+                  ? "bg-[var(--gold)]/15 text-champagne"
+                  : "text-[var(--text)] hover:bg-white/8"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -120,7 +184,7 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex bg-black relative overflow-hidden">
+    <div className="min-h-screen flex bg-[var(--bg)] relative overflow-hidden">
       <div className="ambient-orb orb-emerald" />
       <div className="ambient-orb orb-gold" />
       {/* Left: brand / building imagery */}
@@ -180,7 +244,7 @@ function Login() {
 // ---------------------------------------------------------------------------
 function Shell({ profile, tabs, active, setActive, children }: any) {
   return (
-    <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--bg)] text-white flex relative overflow-hidden">
       <div className="ambient-orb orb-emerald no-print" />
       <div className="ambient-orb orb-gold no-print" />
       <aside className="w-60 shrink-0 glass-strong hidden md:flex flex-col no-print border-r-0 rounded-none relative z-10">
@@ -466,33 +530,33 @@ function RentalEntryForm({ core, profile, onDone }: any) {
       <h1 className="text-lg font-semibold mb-2">Rental Income</h1>
       {err && <div className="text-red-400 text-sm bg-red-950/40 border border-red-900 rounded px-3 py-2">{err}</div>}
       <Field label="Asset">
-        <select value={assetId} onChange={(e) => { setAssetId(e.target.value); setFloor(""); setRoom(""); setUnitId(""); }} required className={selectClass}>
+        <Dropdown value={assetId} onChange={(e) => { setAssetId(e.target.value); setFloor(""); setRoom(""); setUnitId(""); }} required className={selectClass}>
           <option value="">Select asset...</option>
           {core.assets.filter((a: Asset) => a.category === "residential" || core.units.some((u: Unit) => u.asset_id === a.id && u.unit_type === "commercial_unit")).map((a: Asset) => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
-        </select>
+        </Dropdown>
       </Field>
 
       {isBedAsset && (
         <>
           <Field label="Floor">
-            <select value={floor} onChange={(e) => { setFloor(e.target.value); setRoom(""); setUnitId(""); }} required className={selectClass}>
+            <Dropdown value={floor} onChange={(e) => { setFloor(e.target.value); setRoom(""); setUnitId(""); }} required className={selectClass}>
               <option value="">Select floor...</option>
               {floors.map((f: any) => <option key={f} value={f}>{f}</option>)}
-            </select>
+            </Dropdown>
           </Field>
           {floor && (
             <Field label="Room">
-              <select value={room} onChange={(e) => { setRoom(e.target.value); setUnitId(""); }} required className={selectClass}>
+              <Dropdown value={room} onChange={(e) => { setRoom(e.target.value); setUnitId(""); }} required className={selectClass}>
                 <option value="">Select room...</option>
                 {rooms.map((r: any) => <option key={r} value={r}>{r}</option>)}
-              </select>
+              </Dropdown>
             </Field>
           )}
           {room && (
             <Field label="Bed">
-              <select value={unitId} onChange={(e) => setUnitId(e.target.value)} required className={selectClass}>
+              <Dropdown value={unitId} onChange={(e) => setUnitId(e.target.value)} required className={selectClass}>
                 <option value="">Select bed...</option>
                 {beds.map((b: Unit) => {
                   const rt = core.roomTypes.find((rt: RoomType) => rt.id === b.room_type_id);
@@ -500,7 +564,7 @@ function RentalEntryForm({ core, profile, onDone }: any) {
                     {b.name} — {rt?.name} ({b.status})
                   </option>;
                 })}
-              </select>
+              </Dropdown>
             </Field>
           )}
         </>
@@ -508,10 +572,10 @@ function RentalEntryForm({ core, profile, onDone }: any) {
 
       {assetId && !isBedAsset && (
         <Field label="Unit">
-          <select value={unitId} onChange={(e) => setUnitId(e.target.value)} required className={selectClass}>
+          <Dropdown value={unitId} onChange={(e) => setUnitId(e.target.value)} required className={selectClass}>
             <option value="">Select unit...</option>
             {nonBedUnits.map((u: Unit) => <option key={u.id} value={u.id} disabled={u.status !== "occupied"}>{u.name} — {money(u.monthly_rent)} ({u.status})</option>)}
-          </select>
+          </Dropdown>
         </Field>
       )}
 
@@ -527,9 +591,9 @@ function RentalEntryForm({ core, profile, onDone }: any) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount Received"><input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="1" step="0.01" required className={inputClass} /></Field>
         <Field label="Payment Method">
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
+          <Dropdown value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
             <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
-          </select>
+          </Dropdown>
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -573,23 +637,23 @@ function OtherIncomeForm({ core, profile, onDone }: any) {
       <h1 className="text-lg font-semibold mb-2">Other Income</h1>
       {err && <div className="text-red-400 text-sm bg-red-950/40 border border-red-900 rounded px-3 py-2">{err}</div>}
       <Field label="Asset">
-        <select value={assetId} onChange={(e) => setAssetId(e.target.value)} required className={selectClass}>
+        <Dropdown value={assetId} onChange={(e) => setAssetId(e.target.value)} required className={selectClass}>
           <option value="">Select asset...</option>
           {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
+        </Dropdown>
       </Field>
       <Field label="Income Category">
-        <select value={catId} onChange={(e) => setCatId(e.target.value)} required className={selectClass}>
+        <Dropdown value={catId} onChange={(e) => setCatId(e.target.value)} required className={selectClass}>
           <option value="">Select category...</option>
           {core.incomeCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        </Dropdown>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount"><input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="1" step="0.01" required className={inputClass} /></Field>
         <Field label="Payment Method">
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
+          <Dropdown value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
             <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
-          </select>
+          </Dropdown>
         </Field>
       </div>
       <Field label="Date"><input value={date} onChange={(e) => setDate(e.target.value)} type="date" required className={inputClass} /></Field>
@@ -640,23 +704,23 @@ function ExpenseForm({ core, profile, onDone }: any) {
       <h1 className="text-lg font-semibold mb-2">Expense</h1>
       {err && <div className="text-red-400 text-sm bg-red-950/40 border border-red-900 rounded px-3 py-2">{err}</div>}
       <Field label="Asset">
-        <select value={assetId} onChange={(e) => setAssetId(e.target.value)} required className={selectClass}>
+        <Dropdown value={assetId} onChange={(e) => setAssetId(e.target.value)} required className={selectClass}>
           <option value="">Select asset...</option>
           {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
+        </Dropdown>
       </Field>
       <Field label="Expense Category">
-        <select value={catId} onChange={(e) => setCatId(e.target.value)} required className={selectClass}>
+        <Dropdown value={catId} onChange={(e) => setCatId(e.target.value)} required className={selectClass}>
           <option value="">Select category...</option>
           {core.expenseCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        </Dropdown>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Amount"><input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="1" step="0.01" required className={inputClass} /></Field>
         <Field label="Payment Method">
-          <select value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
+          <Dropdown value={method} onChange={(e) => setMethod(e.target.value)} className={selectClass}>
             <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
-          </select>
+          </Dropdown>
         </Field>
       </div>
       <Field label="Date"><input value={date} onChange={(e) => setDate(e.target.value)} type="date" required className={inputClass} /></Field>
@@ -897,10 +961,10 @@ function IncomeView({ core }: any) {
     <div>
       <h1 className="text-lg font-semibold mb-4">Other Income</h1>
       <RangePicker dr={dr} />
-      <select value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
+      <Dropdown value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
         <option value="ALL">All Assets</option>
         {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </select>
+      </Dropdown>
       <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
@@ -951,10 +1015,10 @@ function ExpensesView({ core }: any) {
     <div>
       <h1 className="text-lg font-semibold mb-4">Expenses</h1>
       <RangePicker dr={dr} />
-      <select value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
+      <Dropdown value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
         <option value="ALL">All Assets</option>
         {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </select>
+      </Dropdown>
 
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
@@ -1007,10 +1071,10 @@ function AnalyticsView({ core }: any) {
   return (
     <div>
       <h1 className="text-lg font-semibold mb-4">Analytics</h1>
-      <select value={selected} onChange={(e) => setSelected(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
+      <Dropdown value={selected} onChange={(e) => setSelected(e.target.value)} className={selectClass + " w-auto mb-4 no-print"}>
         <option value="ALL">All Assets (combined)</option>
         {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </select>
+      </Dropdown>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
         <Card label="Total Income" value={money(totalIncome)} tone="green" />
         <Card label="Total Expenses" value={money(totalExpenses)} tone="red" />
@@ -1202,10 +1266,10 @@ function HostelSetup({ core, show }: any) {
         <Field label="Room"><input value={room} onChange={(e) => setRoom(e.target.value)} className={inputClass} placeholder="e.g. 301" required /></Field>
         <Field label="Bed Label"><input value={bedLabel} onChange={(e) => setBedLabel(e.target.value)} className={inputClass} placeholder="e.g. Bed 2" required /></Field>
         <Field label="Room Type">
-          <select value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)} className={selectClass} required>
+          <Dropdown value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)} className={selectClass} required>
             <option value="">Select...</option>
             {core.roomTypes.map((rt: RoomType) => <option key={rt.id} value={rt.id}>{rt.name} — {money(rt.monthly_rent)}</option>)}
-          </select>
+          </Dropdown>
         </Field>
         <div className="col-span-2"><SubmitBtn busy={busy} label="Add Bed" /></div>
       </form>
