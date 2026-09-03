@@ -106,15 +106,9 @@ function FullscreenLoader({ label = "Loading..." }: { label?: string }) {
 // ---------------------------------------------------------------------------
 function Dropdown({ value, onChange, children, className, placeholder }: any) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; flip: boolean }>({ top: 0, left: 0, width: 0, flip: false });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const options = Children.toArray(children)
     .filter((c: any) => c && c.props)
@@ -122,12 +116,51 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
 
   const current = options.find((o: any) => o.value === value);
 
+  const computePosition = useCallback(() => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const estListHeight = Math.min(options.length * 40 + 12, 256);
+    const spaceBelow = window.innerHeight - r.bottom;
+    const flip = spaceBelow < estListHeight + 12 && r.top > estListHeight;
+    setPos({
+      top: flip ? r.top - 8 : r.bottom + 8,
+      left: r.left,
+      width: r.width,
+      flip,
+    });
+  }, [options.length]);
+
+  const toggle = () => {
+    if (!open) computePosition();
+    setOpen((o) => !o);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    computePosition();
+    const close = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onScrollOrResize = () => computePosition();
+    document.addEventListener("mousedown", close);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, computePosition]);
+
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`${className} flex items-center justify-between gap-2 cursor-pointer select-none text-left`}
+        onClick={toggle}
+        className={`${className} flex items-center justify-between gap-2 cursor-pointer select-none text-left w-full`}
       >
         <span className={current && current.value ? "" : "text-[var(--text-secondary)]"}>
           {current ? current.label : placeholder || "Select..."}
@@ -135,7 +168,17 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
         <ChevronDown size={14} className={`text-gold shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute z-50 mt-2 w-full glass-strong rounded-xl p-1.5 max-h-64 overflow-y-auto dropdown-pop">
+        <div
+          ref={panelRef}
+          style={{
+            position: "fixed",
+            top: pos.flip ? undefined : pos.top,
+            bottom: pos.flip ? window.innerHeight - pos.top : undefined,
+            left: pos.left,
+            width: pos.width,
+          }}
+          className="z-[999] glass-strong rounded-xl p-1.5 max-h-64 overflow-y-auto dropdown-pop"
+        >
           {options.map((o: any, i: number) => (
             <button
               key={i}
@@ -159,7 +202,7 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
