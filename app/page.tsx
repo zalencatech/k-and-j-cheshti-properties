@@ -835,6 +835,11 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
   const occupied = units.filter((u: Unit) => u.status === "occupied").length;
   const vacant = units.filter((u: Unit) => u.status !== "occupied").length;
 
+  const updateStatus = async (unitId: string, status: string) => {
+    const { error } = await supabase.from("units").update({ status }).eq("id", unitId);
+    if (!error) core.reload();
+  };
+
   return (
     <div>
       <h1 className="text-lg font-semibold mb-4">{category === "commercial" ? "Commercial Assets" : "Residential Assets"}</h1>
@@ -854,6 +859,7 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
           <Card label="Occupancy" value={units.length ? ((occupied / units.length) * 100).toFixed(1) + "%" : "0%"} />
         </div>
       )}
+      <div className="text-xs text-[var(--text-secondary)] mb-2">Click a unit's status to mark it occupied/vacant — occupied units become selectable in the staff rent entry form.</div>
       <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
@@ -865,7 +871,15 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
                 <td className="p-3">{u.name}</td>
                 <td className="p-3 text-[var(--text-secondary)]">{[u.floor, u.room].filter(Boolean).join(" / ") || "—"}</td>
                 <td className="p-3 text-champagne">{money(u.monthly_rent)}</td>
-                <td className="p-3"><StatusBadge status={u.status === "occupied" ? "PAID" : "VACANT"} /></td>
+                <td className="p-3 w-40">
+                  <Dropdown value={u.status} onChange={(e: any) => updateStatus(u.id, e.target.value)}
+                    className="glass-input rounded-lg px-2 py-1 text-xs">
+                    <option value="occupied">Occupied</option>
+                    <option value="vacant">Vacant</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="maintenance">Maintenance</option>
+                  </Dropdown>
+                </td>
               </tr>
             ))}
             {!units.length && <tr><td colSpan={4} className="p-6 text-center text-[var(--text-secondary)]">No units configured yet. Add units in Settings.</td></tr>}
@@ -1240,6 +1254,11 @@ function HostelSetup({ core, show }: any) {
 
   const beds = core.units.filter((u: Unit) => u.asset_id === hostelAsset?.id);
 
+  const updateBedStatus = async (bedId: string, status: string) => {
+    const { error } = await supabase.from("units").update({ status }).eq("id", bedId);
+    if (!error) core.reload();
+  };
+
   const addBed = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hostelAsset || !floor || !room || !bedLabel || !roomTypeId) return;
@@ -1284,7 +1303,15 @@ function HostelSetup({ core, show }: any) {
                 <tr key={b.id} className="border-b border-white/5 last:border-0">
                   <td className="p-3">{b.floor}</td><td className="p-3">{b.room}</td><td className="p-3">{b.name.split("— ")[1]}</td>
                   <td className="p-3">{rt?.name}</td><td className="p-3">{money(b.monthly_rent)}</td>
-                  <td className="p-3"><StatusBadge status={b.status === "occupied" ? "PAID" : "VACANT"} /></td>
+                  <td className="p-3 w-40">
+                    <Dropdown value={b.status} onChange={(e: any) => updateBedStatus(b.id, e.target.value)}
+                      className="glass-input rounded-lg px-2 py-1 text-xs">
+                      <option value="occupied">Occupied</option>
+                      <option value="vacant">Vacant</option>
+                      <option value="reserved">Reserved</option>
+                      <option value="maintenance">Maintenance</option>
+                    </Dropdown>
+                  </td>
                 </tr>
               );
             })}
