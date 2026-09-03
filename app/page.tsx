@@ -93,7 +93,7 @@ export default function Page() {
 
 function FullscreenLoader({ label = "Loading..." }: { label?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-gray-400">
+    <div className="min-h-screen flex items-center justify-center bg-black text-[var(--text-secondary)]">
       <Loader2 className="animate-spin mr-2" size={18} /> {label}
     </div>
   );
@@ -102,6 +102,9 @@ function FullscreenLoader({ label = "Loading..." }: { label?: string }) {
 // ---------------------------------------------------------------------------
 // LOGIN
 // ---------------------------------------------------------------------------
+const LOGO_URL = "https://kj-website-indol.vercel.app/logo.png";
+const HERO_IMAGE = "https://kj-website-indol.vercel.app/project7.jpg"; // Barkat Market Heights
+
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -117,32 +120,54 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="text-xs tracking-widest text-[var(--gold)] mb-2">KHURRAM &amp; JAMAAL</div>
-          <h1 className="text-2xl font-semibold text-white">K&amp;J CHESHTI PROPERTIES</h1>
-          <p className="text-gray-400 text-sm mt-1">Property &amp; Financial Management System</p>
+    <div className="min-h-screen flex bg-black">
+      {/* Left: brand / building imagery */}
+      <div
+        className="hidden lg:flex lg:w-1/2 hero-image items-end p-12 relative"
+        style={{ backgroundImage: `url(${HERO_IMAGE})` }}
+      >
+        <div className="relative z-10">
+          <img src={LOGO_URL} alt="K&J Chesti" className="h-14 mb-6 brand-glow" />
+          <div className="text-3xl font-semibold text-white leading-tight max-w-md">
+            Barkat Market Heights
+          </div>
+          <div className="text-champagne text-sm mt-2 max-w-md">
+            Lahore's premium mixed-use development — managed end-to-end on one platform.
+          </div>
         </div>
-        <form onSubmit={submit} className="bg-[#111] border border-[#2a2a2a] rounded-lg p-6 space-y-4">
-          {err && (
-            <div className="text-red-400 text-sm bg-red-950/40 border border-red-900 rounded px-3 py-2">{err}</div>
-          )}
-          <div>
-            <label className="text-xs text-gray-400">Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required
-              className="w-full mt-1 bg-black border border-[#2a2a2a] rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--gold)]" />
+      </div>
+
+      {/* Right: login form */}
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8 lg:hidden">
+            <img src={LOGO_URL} alt="K&J Chesti" className="h-12 mx-auto mb-4 brand-glow" />
           </div>
-          <div>
-            <label className="text-xs text-gray-400">Password</label>
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required
-              className="w-full mt-1 bg-black border border-[#2a2a2a] rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--gold)]" />
+          <div className="text-center mb-8">
+            <div className="text-xs tracking-widest text-gold mb-2 hidden lg:block">KHURRAM &amp; JAMAAL</div>
+            <h1 className="text-2xl font-semibold text-white">K&amp;J CHESHTI PROPERTIES</h1>
+            <p className="text-[var(--text-secondary)] text-sm mt-1">Property &amp; Financial Management System</p>
           </div>
-          <button disabled={busy} type="submit"
-            className="w-full bg-[var(--gold)] hover:bg-[var(--gold-bright)] text-black font-medium rounded py-2 text-sm disabled:opacity-60 flex items-center justify-center gap-2">
-            {busy && <Loader2 className="animate-spin" size={16} />} Sign In
-          </button>
-        </form>
+          <form onSubmit={submit} className="glass-strong rounded-2xl p-7 space-y-4">
+            {err && (
+              <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>
+            )}
+            <div>
+              <label className="text-xs text-[var(--text-secondary)]">Email</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required
+                className="w-full mt-1 glass-input rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-[var(--text-secondary)]">Password</label>
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required
+                className="w-full mt-1 glass-input rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            <button disabled={busy} type="submit"
+              className="w-full btn-gold rounded-lg py-2.5 text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+              {busy && <Loader2 className="animate-spin" size={16} />} Sign In
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -154,37 +179,41 @@ function Login() {
 function Shell({ profile, tabs, active, setActive, children }: any) {
   return (
     <div className="min-h-screen bg-black text-white flex">
-      <aside className="w-56 shrink-0 border-r border-[#1f1f1f] bg-[#0c0c0c] hidden md:flex flex-col no-print">
-        <div className="p-5 border-b border-[#1f1f1f]">
-          <div className="text-[10px] tracking-widest text-[var(--gold)]">KHURRAM &amp; JAMAAL</div>
-          <div className="font-semibold text-sm mt-1">K&amp;J CHESHTI</div>
-          <div className="text-[11px] text-gray-500">{profile.role === "admin" ? "Administrator" : "Staff"}</div>
+      <aside className="w-60 shrink-0 glass-strong hidden md:flex flex-col no-print border-r-0 rounded-none">
+        <div className="p-5 border-b border-[var(--glass-border)] flex items-center gap-3">
+          <img src={LOGO_URL} alt="K&J Chesti" className="h-8 w-8 object-contain" />
+          <div>
+            <div className="font-semibold text-sm">K&amp;J CHESHTI</div>
+            <div className="text-[11px] text-[var(--text-secondary)]">{profile.role === "admin" ? "Administrator" : "Staff"}</div>
+          </div>
         </div>
         <nav className="flex-1 py-3">
           {tabs.map((t: any) => (
             <button key={t.key} onClick={() => setActive(t.key)}
-              className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm text-left ${
-                active === t.key ? "bg-[#1a1a1a] text-[var(--gold)] border-r-2 border-[var(--gold)]" : "text-gray-400 hover:text-white hover:bg-[#141414]"
-              }`}>
+              className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm text-left rounded-lg mx-2 mb-0.5 transition-colors ${
+                active === t.key ? "nav-active" : "text-[var(--text-secondary)] hover:text-white hover:bg-white/5"
+              }`} style={{ width: "calc(100% - 1rem)" }}>
               <t.icon size={16} /> {t.label}
             </button>
           ))}
         </nav>
         <button onClick={() => supabase.auth.signOut()}
-          className="flex items-center gap-2 px-5 py-4 text-sm text-gray-400 hover:text-red-400 border-t border-[#1f1f1f]">
+          className="flex items-center gap-2 px-5 py-4 text-sm text-[var(--text-secondary)] hover:text-red-400 border-t border-[var(--glass-border)]">
           <LogOut size={16} /> Logout
         </button>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[#1f1f1f] no-print">
-          <span className="font-semibold text-sm text-[var(--gold)]">K&amp;J CHESHTI</span>
-          <button onClick={() => supabase.auth.signOut()}><LogOut size={18} className="text-gray-400" /></button>
+        <div className="md:hidden flex items-center justify-between px-4 py-3 glass no-print rounded-none border-x-0 border-t-0">
+          <span className="font-semibold text-sm text-gold flex items-center gap-2">
+            <img src={LOGO_URL} alt="K&J Chesti" className="h-6 w-6 object-contain" /> K&amp;J CHESHTI
+          </span>
+          <button onClick={() => supabase.auth.signOut()}><LogOut size={18} className="text-[var(--text-secondary)]" /></button>
         </div>
-        <div className="md:hidden flex overflow-x-auto border-b border-[#1f1f1f] no-print">
+        <div className="md:hidden flex overflow-x-auto glass no-print rounded-none border-x-0 border-t-0">
           {tabs.map((t: any) => (
             <button key={t.key} onClick={() => setActive(t.key)}
-              className={`px-4 py-2.5 text-xs whitespace-nowrap ${active === t.key ? "text-[var(--gold)] border-b-2 border-[var(--gold)]" : "text-gray-500"}`}>
+              className={`px-4 py-2.5 text-xs whitespace-nowrap ${active === t.key ? "text-gold border-b-2 border-[var(--gold)]" : "text-[var(--text-secondary)]"}`}>
               {t.label}
             </button>
           ))}
@@ -196,10 +225,10 @@ function Shell({ profile, tabs, active, setActive, children }: any) {
 }
 
 function Card({ label, value, tone = "gold" }: { label: string; value: string; tone?: "gold" | "green" | "red" | "gray" }) {
-  const toneClass = { gold: "text-[var(--gold-bright)]", green: "text-green-400", red: "text-red-400", gray: "text-gray-300" }[tone];
+  const toneClass = { gold: "text-champagne", green: "text-[var(--success)]", red: "text-[var(--danger)]", gray: "text-gray-300" }[tone];
   return (
-    <div className="bg-[#111] border border-[#232323] rounded-lg p-4">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
+    <div className="glass rounded-xl p-4">
+      <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">{label}</div>
       <div className={`text-xl font-semibold mt-1 ${toneClass}`}>{value}</div>
     </div>
   );
@@ -210,7 +239,7 @@ function StatusBadge({ status }: { status: string }) {
     PAID: "bg-green-950 text-green-400 border-green-900",
     PENDING: "bg-yellow-950 text-yellow-400 border-yellow-900",
     OVERDUE: "bg-red-950 text-red-400 border-red-900",
-    VACANT: "bg-gray-900 text-gray-400 border-gray-800",
+    VACANT: "bg-gray-900 text-[var(--text-secondary)] border-gray-800",
   };
   return <span className={`text-[11px] px-2 py-0.5 rounded border ${map[status] || map.VACANT}`}>{status}</span>;
 }
@@ -319,18 +348,18 @@ function StaffApp({ profile }: { profile: Profile }) {
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button onClick={() => setActive("rental")} className="bg-[#111] border border-[#232323] hover:border-[var(--gold)] rounded-lg p-5 text-left">
-              <Wallet className="text-[var(--gold)] mb-2" size={20} /><div className="font-medium text-sm">+ Rental Income</div>
+            <button onClick={() => setActive("rental")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
+              <Wallet className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Rental Income</div>
             </button>
-            <button onClick={() => setActive("other")} className="bg-[#111] border border-[#232323] hover:border-[var(--gold)] rounded-lg p-5 text-left">
-              <PlusCircle className="text-[var(--gold)] mb-2" size={20} /><div className="font-medium text-sm">+ Other Income</div>
+            <button onClick={() => setActive("other")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
+              <PlusCircle className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Other Income</div>
             </button>
-            <button onClick={() => setActive("expense")} className="bg-[#111] border border-[#232323] hover:border-[var(--gold)] rounded-lg p-5 text-left">
-              <Receipt className="text-[var(--gold)] mb-2" size={20} /><div className="font-medium text-sm">+ Expense</div>
+            <button onClick={() => setActive("expense")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
+              <Receipt className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Expense</div>
             </button>
           </div>
           <div>
-            <h2 className="text-sm text-gray-400 mb-2">Your recent entries (last 14 days)</h2>
+            <h2 className="text-sm text-[var(--text-secondary)] mb-2">Your recent entries (last 14 days)</h2>
             <EntriesTable rows={myEntries.slice(0, 10)} />
           </div>
         </div>
@@ -349,20 +378,20 @@ function StaffApp({ profile }: { profile: Profile }) {
 }
 
 function EntriesTable({ rows }: { rows: any[] }) {
-  if (!rows.length) return <div className="text-sm text-gray-500 bg-[#111] border border-[#232323] rounded-lg p-6 text-center">No transactions recorded yet.</div>;
+  if (!rows.length) return <div className="text-sm text-[var(--text-secondary)] glass rounded-lg p-6 text-center">No transactions recorded yet.</div>;
   return (
-    <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+    <div className="overflow-x-auto glass rounded-lg">
       <table className="w-full text-sm">
-        <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+        <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
           <th className="p-3">Type</th><th className="p-3">Detail</th><th className="p-3">Date</th><th className="p-3 text-right">Amount</th>
         </tr></thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-b border-[#1a1a1a] last:border-0">
-              <td className="p-3 text-gray-400">{r.kind}</td>
+            <tr key={i} className="border-b border-white/5 last:border-0">
+              <td className="p-3 text-[var(--text-secondary)]">{r.kind}</td>
               <td className="p-3">{r.label}</td>
-              <td className="p-3 text-gray-400">{r.date}</td>
-              <td className="p-3 text-right text-[var(--gold-bright)]">{money(r.amount)}</td>
+              <td className="p-3 text-[var(--text-secondary)]">{r.date}</td>
+              <td className="p-3 text-right text-champagne">{money(r.amount)}</td>
             </tr>
           ))}
         </tbody>
@@ -483,8 +512,8 @@ function RentalEntryForm({ core, profile, onDone }: any) {
       )}
 
       {selectedUnit && (
-        <div className="text-xs text-gray-400 bg-[#111] border border-[#232323] rounded px-3 py-2">
-          Configured rent: <span className="text-[var(--gold-bright)]">{money(selectedUnit.monthly_rent)}</span>{roomType ? ` (${roomType.name})` : ""}
+        <div className="text-xs text-[var(--text-secondary)] glass rounded px-3 py-2">
+          Configured rent: <span className="text-champagne">{money(selectedUnit.monthly_rent)}</span>{roomType ? ` (${roomType.name})` : ""}
         </div>
       )}
 
@@ -630,21 +659,21 @@ function ExpenseForm({ core, profile, onDone }: any) {
       <Field label="Paid To / Vendor"><input value={paidTo} onChange={(e) => setPaidTo(e.target.value)} className={inputClass} /></Field>
       <Field label="Description"><textarea value={desc} onChange={(e) => setDesc(e.target.value)} className={inputClass} rows={2} /></Field>
       <Field label="Receipt / Invoice (optional)">
-        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm text-gray-400" />
+        <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm text-[var(--text-secondary)]" />
       </Field>
       <SubmitBtn busy={busy} label="Record Expense" />
     </form>
   );
 }
 
-const inputClass = "w-full bg-black border border-[#2a2a2a] rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--gold)]";
+const inputClass = "w-full glass-input rounded-lg px-3 py-2 text-sm";
 const selectClass = inputClass;
 function Field({ label, children }: any) {
-  return <div><label className="text-xs text-gray-400 block mb-1">{label}</label>{children}</div>;
+  return <div><label className="text-xs text-[var(--text-secondary)] block mb-1">{label}</label>{children}</div>;
 }
 function SubmitBtn({ busy, label }: { busy: boolean; label: string }) {
   return (
-    <button disabled={busy} type="submit" className="w-full bg-[var(--gold)] hover:bg-[var(--gold-bright)] text-black font-medium rounded py-2.5 text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+    <button disabled={busy} type="submit" className="w-full btn-gold rounded-lg py-2.5 text-sm disabled:opacity-60 flex items-center justify-center gap-2">
       {busy && <Loader2 className="animate-spin" size={16} />} {label}
     </button>
   );
@@ -744,7 +773,7 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
       <div className="flex gap-2 mb-4 flex-wrap">
         {assets.map((a: Asset) => (
           <button key={a.id} onClick={() => setSelected(a.id)}
-            className={`px-3 py-1.5 rounded text-sm border ${selected === a.id ? "border-[var(--gold)] text-[var(--gold-bright)]" : "border-[#2a2a2a] text-gray-400"}`}>
+            className={`px-3 py-1.5 rounded text-sm border ${selected === a.id ? "border-[var(--gold)] text-champagne" : "border-white/10 text-[var(--text-secondary)]"}`}>
             {a.name}
           </button>
         ))}
@@ -757,21 +786,21 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
           <Card label="Occupancy" value={units.length ? ((occupied / units.length) * 100).toFixed(1) + "%" : "0%"} />
         </div>
       )}
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
             <th className="p-3">Unit</th><th className="p-3">Floor / Room</th><th className="p-3">Rent</th><th className="p-3">Status</th>
           </tr></thead>
           <tbody>
             {units.map((u: Unit) => (
-              <tr key={u.id} className="border-b border-[#1a1a1a] last:border-0">
+              <tr key={u.id} className="border-b border-white/5 last:border-0">
                 <td className="p-3">{u.name}</td>
-                <td className="p-3 text-gray-400">{[u.floor, u.room].filter(Boolean).join(" / ") || "—"}</td>
-                <td className="p-3 text-[var(--gold-bright)]">{money(u.monthly_rent)}</td>
+                <td className="p-3 text-[var(--text-secondary)]">{[u.floor, u.room].filter(Boolean).join(" / ") || "—"}</td>
+                <td className="p-3 text-champagne">{money(u.monthly_rent)}</td>
                 <td className="p-3"><StatusBadge status={u.status === "occupied" ? "PAID" : "VACANT"} /></td>
               </tr>
             ))}
-            {!units.length && <tr><td colSpan={4} className="p-6 text-center text-gray-500">No units configured yet. Add units in Settings.</td></tr>}
+            {!units.length && <tr><td colSpan={4} className="p-6 text-center text-[var(--text-secondary)]">No units configured yet. Add units in Settings.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -787,26 +816,26 @@ function RentManagement({ core }: any) {
       <h1 className="text-lg font-semibold mb-4">Rent Management</h1>
       <div className="flex gap-2 mb-4 flex-wrap">
         {["ALL", "PAID", "PENDING", "OVERDUE", "VACANT"].map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded text-xs border ${filter === f ? "border-[var(--gold)] text-[var(--gold-bright)]" : "border-[#2a2a2a] text-gray-400"}`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded text-xs border ${filter === f ? "border-[var(--gold)] text-champagne" : "border-white/10 text-[var(--text-secondary)]"}`}>{f}</button>
         ))}
       </div>
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
             <th className="p-3">Property</th><th className="p-3">Unit</th><th className="p-3">Tenant</th><th className="p-3">Rent</th><th className="p-3">Received</th><th className="p-3">Status</th>
           </tr></thead>
           <tbody>
             {rows.map((r: RentRow) => (
-              <tr key={r.unit_id} className="border-b border-[#1a1a1a] last:border-0">
+              <tr key={r.unit_id} className="border-b border-white/5 last:border-0">
                 <td className="p-3">{r.property_name}</td>
                 <td className="p-3">{r.unit_name}</td>
-                <td className="p-3 text-gray-400">{r.tenant_name || "—"}</td>
+                <td className="p-3 text-[var(--text-secondary)]">{r.tenant_name || "—"}</td>
                 <td className="p-3">{money(r.monthly_rent)}</td>
                 <td className="p-3 text-green-400">{money(r.amount_received)}</td>
                 <td className="p-3"><StatusBadge status={r.rent_status} /></td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={6} className="p-6 text-center text-gray-500">No units match this filter.</td></tr>}
+            {!rows.length && <tr><td colSpan={6} className="p-6 text-center text-[var(--text-secondary)]">No units match this filter.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -833,12 +862,12 @@ function RangePicker({ dr }: { dr: ReturnType<typeof useDateRange> }) {
   return (
     <div className="flex flex-wrap gap-2 items-center mb-4 no-print">
       {[["today", "Today"], ["week", "This Week"], ["month", "This Month"], ["year", "This Year"], ["all", "All Time"], ["custom", "Custom"]].map(([k, l]) => (
-        <button key={k} onClick={() => dr.setRange(k)} className={`px-3 py-1.5 rounded text-xs border ${dr.range === k ? "border-[var(--gold)] text-[var(--gold-bright)]" : "border-[#2a2a2a] text-gray-400"}`}>{l}</button>
+        <button key={k} onClick={() => dr.setRange(k)} className={`px-3 py-1.5 rounded text-xs border ${dr.range === k ? "border-[var(--gold)] text-champagne" : "border-white/10 text-[var(--text-secondary)]"}`}>{l}</button>
       ))}
       {dr.range === "custom" && (
         <>
           <input type="date" value={dr.start} onChange={(e) => dr.setStart(e.target.value)} className={inputClass + " w-auto"} />
-          <span className="text-gray-500 text-xs">to</span>
+          <span className="text-[var(--text-secondary)] text-xs">to</span>
           <input type="date" value={dr.end} onChange={(e) => dr.setEnd(e.target.value)} className={inputClass + " w-auto"} />
         </>
       )}
@@ -868,24 +897,24 @@ function IncomeView({ core }: any) {
         <option value="ALL">All Assets</option>
         {core.assets.map((a: Asset) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
             <th className="p-3">Date</th><th className="p-3">Asset</th><th className="p-3">Category</th><th className="p-3">Method</th><th className="p-3 text-right">Amount</th>
           </tr></thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} className="border-b border-[#1a1a1a] last:border-0">
-                <td className="p-3 text-gray-400">{r.txn_date}</td>
+              <tr key={r.id} className="border-b border-white/5 last:border-0">
+                <td className="p-3 text-[var(--text-secondary)]">{r.txn_date}</td>
                 <td className="p-3">{r.assets?.name}</td>
                 <td className="p-3">{r.income_categories?.name}</td>
-                <td className="p-3 text-gray-400">{r.payment_method === "cash" ? "Cash" : "Bank Transfer"}</td>
-                <td className="p-3 text-right text-[var(--gold-bright)]">{money(r.amount)}</td>
+                <td className="p-3 text-[var(--text-secondary)]">{r.payment_method === "cash" ? "Cash" : "Bank Transfer"}</td>
+                <td className="p-3 text-right text-champagne">{money(r.amount)}</td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={5} className="p-6 text-center text-gray-500">No transactions recorded yet.</td></tr>}
+            {!filtered.length && <tr><td colSpan={5} className="p-6 text-center text-[var(--text-secondary)]">No transactions recorded yet.</td></tr>}
           </tbody>
-          {filtered.length > 0 && <tfoot><tr className="border-t border-[#232323]"><td colSpan={4} className="p-3 text-right text-gray-400">TOTAL</td><td className="p-3 text-right font-semibold text-[var(--gold-bright)]">{money(total)}</td></tr></tfoot>}
+          {filtered.length > 0 && <tfoot><tr className="border-t border-white/10"><td colSpan={4} className="p-3 text-right text-[var(--text-secondary)]">TOTAL</td><td className="p-3 text-right font-semibold text-champagne">{money(total)}</td></tr></tfoot>}
         </table>
       </div>
     </div>
@@ -926,34 +955,34 @@ function ExpensesView({ core }: any) {
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
           {Object.entries(byCategory).map(([name, amt]) => (
-            <div key={name} className="bg-[#111] border border-[#232323] rounded p-3">
-              <div className="text-[11px] text-gray-500">{name}</div>
-              <div className="text-sm text-[var(--gold-bright)] mt-1">{money(amt)}</div>
+            <div key={name} className="glass rounded p-3">
+              <div className="text-[11px] text-[var(--text-secondary)]">{name}</div>
+              <div className="text-sm text-champagne mt-1">{money(amt)}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
             <th className="p-3">Date</th><th className="p-3">Asset</th><th className="p-3">Category</th><th className="p-3">Vendor</th><th className="p-3">Method</th><th className="p-3 text-right">Amount</th><th className="p-3 no-print">Receipt</th>
           </tr></thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} className="border-b border-[#1a1a1a] last:border-0">
-                <td className="p-3 text-gray-400">{r.txn_date}</td>
+              <tr key={r.id} className="border-b border-white/5 last:border-0">
+                <td className="p-3 text-[var(--text-secondary)]">{r.txn_date}</td>
                 <td className="p-3">{r.assets?.name}</td>
                 <td className="p-3">{r.expense_categories?.name}</td>
-                <td className="p-3 text-gray-400">{r.paid_to || "—"}</td>
-                <td className="p-3 text-gray-400">{r.payment_method === "cash" ? "Cash" : "Bank Transfer"}</td>
+                <td className="p-3 text-[var(--text-secondary)]">{r.paid_to || "—"}</td>
+                <td className="p-3 text-[var(--text-secondary)]">{r.payment_method === "cash" ? "Cash" : "Bank Transfer"}</td>
                 <td className="p-3 text-right text-red-400">{money(r.amount)}</td>
-                <td className="p-3 no-print">{r.receipt_path ? <button onClick={() => viewReceipt(r.receipt_path)} className="text-[var(--gold)] text-xs underline">View</button> : "—"}</td>
+                <td className="p-3 no-print">{r.receipt_path ? <button onClick={() => viewReceipt(r.receipt_path)} className="text-gold text-xs underline">View</button> : "—"}</td>
               </tr>
             ))}
-            {!filtered.length && <tr><td colSpan={7} className="p-6 text-center text-gray-500">No transactions recorded yet.</td></tr>}
+            {!filtered.length && <tr><td colSpan={7} className="p-6 text-center text-[var(--text-secondary)]">No transactions recorded yet.</td></tr>}
           </tbody>
-          {filtered.length > 0 && <tfoot><tr className="border-t border-[#232323]"><td colSpan={5} className="p-3 text-right text-gray-400">TOTAL EXPENSES</td><td className="p-3 text-right font-semibold text-red-400">{money(total)}</td><td className="no-print" /></tr></tfoot>}
+          {filtered.length > 0 && <tfoot><tr className="border-t border-white/10"><td colSpan={5} className="p-3 text-right text-[var(--text-secondary)]">TOTAL EXPENSES</td><td className="p-3 text-right font-semibold text-red-400">{money(total)}</td><td className="no-print" /></tr></tfoot>}
         </table>
       </div>
     </div>
@@ -986,20 +1015,20 @@ function AnalyticsView({ core }: any) {
         <Card label="Rent Received" value={money(rentReceived)} tone="green" />
         <Card label="Rent Outstanding" value={money(Math.max(0, expectedRent - rentReceived))} tone="red" />
       </div>
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
             <th className="p-3">Asset</th><th className="p-3 text-right">Expected Rent</th><th className="p-3 text-right">Rent Received</th><th className="p-3 text-right">Other Income</th><th className="p-3 text-right">Expenses</th><th className="p-3 text-right">Net Profit</th>
           </tr></thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.asset_id} className="border-b border-[#1a1a1a] last:border-0">
+              <tr key={r.asset_id} className="border-b border-white/5 last:border-0">
                 <td className="p-3">{r.asset_name}</td>
                 <td className="p-3 text-right">{money(r.expected_rent_this_month)}</td>
                 <td className="p-3 text-right text-green-400">{money(r.rent_received_this_month)}</td>
                 <td className="p-3 text-right">{money(r.total_other_income)}</td>
                 <td className="p-3 text-right text-red-400">{money(r.total_expenses)}</td>
-                <td className="p-3 text-right text-[var(--gold-bright)]">{money(r.rent_received_this_month + r.total_other_income - r.total_expenses)}</td>
+                <td className="p-3 text-right text-champagne">{money(r.rent_received_this_month + r.total_other_income - r.total_expenses)}</td>
               </tr>
             ))}
           </tbody>
@@ -1034,13 +1063,13 @@ function ReportsView({ core }: any) {
     <div className="print-area">
       <div className="flex items-center justify-between mb-4 no-print">
         <h1 className="text-lg font-semibold">Reports</h1>
-        <button onClick={() => window.print()} className="flex items-center gap-2 bg-[var(--gold)] text-black text-sm px-3 py-1.5 rounded"><Printer size={14} /> Print</button>
+        <button onClick={() => window.print()} className="flex items-center gap-2 btn-gold text-sm px-3 py-1.5 rounded-lg"><Printer size={14} /> Print</button>
       </div>
       <RangePicker dr={dr} />
-      <div className="text-center mb-6 border-b border-[#232323] pb-4">
-        <div className="text-xs tracking-widest text-[var(--gold)]">K&amp;J CHESHTI PROPERTIES</div>
-        <div className="text-sm text-gray-400">Property &amp; Financial Management System</div>
-        <div className="text-xs text-gray-500 mt-1">Financial Report: {dr.start} to {dr.end}</div>
+      <div className="text-center mb-6 border-b border-white/10 pb-4">
+        <div className="text-xs tracking-widest text-gold">K&amp;J CHESHTI PROPERTIES</div>
+        <div className="text-sm text-[var(--text-secondary)]">Property &amp; Financial Management System</div>
+        <div className="text-xs text-[var(--text-secondary)] mt-1">Financial Report: {dr.start} to {dr.end}</div>
         <div className="text-[11px] text-gray-600">Generated {new Date().toLocaleString()}</div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -1051,7 +1080,7 @@ function ReportsView({ core }: any) {
         <Card label="Total Expenses" value={money(totalExpenses)} tone="red" />
         <Card label="Net Profit" value={money(netProfit)} tone={netProfit >= 0 ? "green" : "red"} />
       </div>
-      <div className="text-sm text-gray-500">Use the Income and Expenses tabs for detailed, filterable transaction lists — this summary is optimized for printing.</div>
+      <div className="text-sm text-[var(--text-secondary)]">Use the Income and Expenses tabs for detailed, filterable transaction lists — this summary is optimized for printing.</div>
     </div>
   );
 }
@@ -1088,7 +1117,7 @@ function SettingsView({ core, show }: any) {
       <h1 className="text-lg font-semibold mb-4">Settings</h1>
       <div className="flex gap-2 mb-5 flex-wrap">
         {["categories", "hostel", "grace"].map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded text-xs border ${tab === t ? "border-[var(--gold)] text-[var(--gold-bright)]" : "border-[#2a2a2a] text-gray-400"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded text-xs border ${tab === t ? "border-[var(--gold)] text-champagne" : "border-white/10 text-[var(--text-secondary)]"}`}>
             {t === "categories" ? "Categories" : t === "hostel" ? "Hostel Setup" : "Rent Rules"}
           </button>
         ))}
@@ -1097,19 +1126,19 @@ function SettingsView({ core, show }: any) {
       {tab === "categories" && (
         <div className="grid md:grid-cols-2 gap-6 max-w-3xl">
           <div>
-            <h2 className="text-sm text-gray-400 mb-2">Expense Categories</h2>
-            <div className="space-y-1 mb-3">{core.expenseCats.map((c: Category) => <div key={c.id} className="text-sm bg-[#111] border border-[#232323] rounded px-3 py-1.5">{c.name}</div>)}</div>
+            <h2 className="text-sm text-[var(--text-secondary)] mb-2">Expense Categories</h2>
+            <div className="space-y-1 mb-3">{core.expenseCats.map((c: Category) => <div key={c.id} className="text-sm glass rounded px-3 py-1.5">{c.name}</div>)}</div>
             <div className="flex gap-2">
               <input value={newExpCat} onChange={(e) => setNewExpCat(e.target.value)} className={inputClass} placeholder="New category" />
-              <button onClick={() => addCategory("expense_categories", newExpCat, () => setNewExpCat(""))} className="bg-[var(--gold)] text-black text-sm px-3 rounded shrink-0">Add</button>
+              <button onClick={() => addCategory("expense_categories", newExpCat, () => setNewExpCat(""))} className="btn-gold text-sm px-3 rounded-lg shrink-0">Add</button>
             </div>
           </div>
           <div>
-            <h2 className="text-sm text-gray-400 mb-2">Income Categories</h2>
-            <div className="space-y-1 mb-3">{core.incomeCats.map((c: Category) => <div key={c.id} className="text-sm bg-[#111] border border-[#232323] rounded px-3 py-1.5">{c.name}</div>)}</div>
+            <h2 className="text-sm text-[var(--text-secondary)] mb-2">Income Categories</h2>
+            <div className="space-y-1 mb-3">{core.incomeCats.map((c: Category) => <div key={c.id} className="text-sm glass rounded px-3 py-1.5">{c.name}</div>)}</div>
             <div className="flex gap-2">
               <input value={newIncCat} onChange={(e) => setNewIncCat(e.target.value)} className={inputClass} placeholder="New category" />
-              <button onClick={() => addCategory("income_categories", newIncCat, () => setNewIncCat(""))} className="bg-[var(--gold)] text-black text-sm px-3 rounded shrink-0">Add</button>
+              <button onClick={() => addCategory("income_categories", newIncCat, () => setNewIncCat(""))} className="btn-gold text-sm px-3 rounded-lg shrink-0">Add</button>
             </div>
           </div>
         </div>
@@ -1125,7 +1154,7 @@ function SettingsView({ core, show }: any) {
           <Field label="Grace Period (days)">
             <input value={gracePeriod} onChange={(e) => setGracePeriod(e.target.value)} type="number" min="0" max="30" className={inputClass} />
           </Field>
-          <button onClick={() => { saveSetting("rent_due_day", dueDay); saveSetting("grace_period_days", gracePeriod); }} className="bg-[var(--gold)] text-black text-sm px-4 py-2 rounded">Save</button>
+          <button onClick={() => { saveSetting("rent_due_day", dueDay); saveSetting("grace_period_days", gracePeriod); }} className="btn-gold text-sm px-4 py-2 rounded-lg">Save</button>
         </div>
       )}
     </div>
@@ -1159,12 +1188,12 @@ function HostelSetup({ core, show }: any) {
 
   return (
     <div className="max-w-2xl">
-      <div className="text-sm text-gray-400 mb-3">
+      <div className="text-sm text-[var(--text-secondary)] mb-3">
         Barkat Market Heights Boys Hostel has 125 beds across the top 3 floors. The exact floor/room
         layout wasn't specified up front, so add beds here as you finalize the layout — each bed
         automatically inherits its rent from the selected room type.
       </div>
-      <form onSubmit={addBed} className="grid grid-cols-2 gap-3 bg-[#111] border border-[#232323] rounded-lg p-4 mb-6">
+      <form onSubmit={addBed} className="grid grid-cols-2 gap-3 glass rounded-lg p-4 mb-6">
         <Field label="Floor"><input value={floor} onChange={(e) => setFloor(e.target.value)} className={inputClass} placeholder="e.g. 3rd Floor" required /></Field>
         <Field label="Room"><input value={room} onChange={(e) => setRoom(e.target.value)} className={inputClass} placeholder="e.g. 301" required /></Field>
         <Field label="Bed Label"><input value={bedLabel} onChange={(e) => setBedLabel(e.target.value)} className={inputClass} placeholder="e.g. Bed 2" required /></Field>
@@ -1176,22 +1205,22 @@ function HostelSetup({ core, show }: any) {
         </Field>
         <div className="col-span-2"><SubmitBtn busy={busy} label="Add Bed" /></div>
       </form>
-      <div className="text-sm text-gray-400 mb-2">{beds.length} of 125 beds configured</div>
-      <div className="overflow-x-auto bg-[#111] border border-[#232323] rounded-lg">
+      <div className="text-sm text-[var(--text-secondary)] mb-2">{beds.length} of 125 beds configured</div>
+      <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-gray-500 text-xs border-b border-[#232323]"><th className="p-3">Floor</th><th className="p-3">Room</th><th className="p-3">Bed</th><th className="p-3">Type</th><th className="p-3">Rent</th><th className="p-3">Status</th></tr></thead>
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10"><th className="p-3">Floor</th><th className="p-3">Room</th><th className="p-3">Bed</th><th className="p-3">Type</th><th className="p-3">Rent</th><th className="p-3">Status</th></tr></thead>
           <tbody>
             {beds.map((b: Unit) => {
               const rt = core.roomTypes.find((r: RoomType) => r.id === b.room_type_id);
               return (
-                <tr key={b.id} className="border-b border-[#1a1a1a] last:border-0">
+                <tr key={b.id} className="border-b border-white/5 last:border-0">
                   <td className="p-3">{b.floor}</td><td className="p-3">{b.room}</td><td className="p-3">{b.name.split("— ")[1]}</td>
                   <td className="p-3">{rt?.name}</td><td className="p-3">{money(b.monthly_rent)}</td>
                   <td className="p-3"><StatusBadge status={b.status === "occupied" ? "PAID" : "VACANT"} /></td>
                 </tr>
               );
             })}
-            {!beds.length && <tr><td colSpan={6} className="p-6 text-center text-gray-500">No beds configured yet.</td></tr>}
+            {!beds.length && <tr><td colSpan={6} className="p-6 text-center text-[var(--text-secondary)]">No beds configured yet.</td></tr>}
           </tbody>
         </table>
       </div>
