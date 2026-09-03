@@ -120,13 +120,15 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex bg-black">
+    <div className="min-h-screen flex bg-black relative overflow-hidden">
+      <div className="ambient-orb orb-emerald" />
+      <div className="ambient-orb orb-gold" />
       {/* Left: brand / building imagery */}
       <div
-        className="hidden lg:flex lg:w-1/2 hero-image items-end p-12 relative"
+        className="hidden lg:flex lg:w-1/2 hero-image items-end p-12 relative building-pop"
         style={{ backgroundImage: `url(${HERO_IMAGE})` }}
       >
-        <div className="relative z-10">
+        <div className="relative z-10 fade-up stagger-2">
           <img src={LOGO_URL} alt="K&J Chesti" className="h-14 mb-6 brand-glow" />
           <div className="text-3xl font-semibold text-white leading-tight max-w-md">
             Barkat Market Heights
@@ -138,8 +140,8 @@ function Login() {
       </div>
 
       {/* Right: login form */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm">
+      <div className="flex-1 flex items-center justify-center px-4 relative z-10">
+        <div className="w-full max-w-sm fade-up">
           <div className="text-center mb-8 lg:hidden">
             <img src={LOGO_URL} alt="K&J Chesti" className="h-12 mx-auto mb-4 brand-glow" />
           </div>
@@ -148,7 +150,7 @@ function Login() {
             <h1 className="text-2xl font-semibold text-white">K&amp;J CHESHTI PROPERTIES</h1>
             <p className="text-[var(--text-secondary)] text-sm mt-1">Property &amp; Financial Management System</p>
           </div>
-          <form onSubmit={submit} className="glass-strong rounded-2xl p-7 space-y-4">
+          <form onSubmit={submit} className="glass-strong shimmer-border rounded-2xl p-7 space-y-4 fade-up stagger-2">
             {err && (
               <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>
             )}
@@ -178,8 +180,10 @@ function Login() {
 // ---------------------------------------------------------------------------
 function Shell({ profile, tabs, active, setActive, children }: any) {
   return (
-    <div className="min-h-screen bg-black text-white flex">
-      <aside className="w-60 shrink-0 glass-strong hidden md:flex flex-col no-print border-r-0 rounded-none">
+    <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
+      <div className="ambient-orb orb-emerald no-print" />
+      <div className="ambient-orb orb-gold no-print" />
+      <aside className="w-60 shrink-0 glass-strong hidden md:flex flex-col no-print border-r-0 rounded-none relative z-10">
         <div className="p-5 border-b border-[var(--glass-border)] flex items-center gap-3">
           <img src={LOGO_URL} alt="K&J Chesti" className="h-8 w-8 object-contain" />
           <div>
@@ -193,7 +197,7 @@ function Shell({ profile, tabs, active, setActive, children }: any) {
               className={`w-full flex items-center gap-3 px-5 py-2.5 text-sm text-left rounded-lg mx-2 mb-0.5 transition-colors ${
                 active === t.key ? "nav-active" : "text-[var(--text-secondary)] hover:text-white hover:bg-white/5"
               }`} style={{ width: "calc(100% - 1rem)" }}>
-              <t.icon size={16} /> {t.label}
+              <t.icon size={16} className="nav-icon-anim" /> {t.label}
             </button>
           ))}
         </nav>
@@ -203,7 +207,7 @@ function Shell({ profile, tabs, active, setActive, children }: any) {
         </button>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <div className="md:hidden flex items-center justify-between px-4 py-3 glass no-print rounded-none border-x-0 border-t-0">
           <span className="font-semibold text-sm text-gold flex items-center gap-2">
             <img src={LOGO_URL} alt="K&J Chesti" className="h-6 w-6 object-contain" /> K&amp;J CHESHTI
@@ -227,7 +231,7 @@ function Shell({ profile, tabs, active, setActive, children }: any) {
 function Card({ label, value, tone = "gold" }: { label: string; value: string; tone?: "gold" | "green" | "red" | "gray" }) {
   const toneClass = { gold: "text-champagne", green: "text-[var(--success)]", red: "text-[var(--danger)]", gray: "text-gray-300" }[tone];
   return (
-    <div className="glass rounded-xl p-4">
+    <div className="glass fade-up rounded-xl p-4">
       <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">{label}</div>
       <div className={`text-xl font-semibold mt-1 ${toneClass}`}>{value}</div>
     </div>
@@ -337,9 +341,9 @@ function StaffApp({ profile }: { profile: Profile }) {
         <div className="space-y-6">
           <h1 className="text-lg font-semibold">Welcome, {profile.full_name || profile.email}</h1>
           {overdue.length > 0 && (
-            <div className="bg-red-950/50 border border-red-900 rounded-lg p-4">
+            <div className="glass border-red-500/30 rounded-lg p-4 fade-up">
               <div className="flex items-center gap-2 text-red-400 font-medium text-sm">
-                <AlertTriangle size={16} /> RENT PAYMENTS OVERDUE
+                <AlertTriangle size={16} className="pulse-dot" /> RENT PAYMENTS OVERDUE
               </div>
               <div className="text-red-300 text-sm mt-1">{overdue.length} rental payment(s) have passed the 5-day grace period.</div>
               <div className="mt-2 space-y-1 text-xs text-red-300/80">
@@ -741,8 +745,8 @@ function AdminDashboard({ core, setActive }: any) {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">Dashboard — {new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</h1>
       {overdue.length > 0 && (
-        <button onClick={() => setActive("rent")} className="w-full text-left bg-red-950/50 border border-red-900 rounded-lg p-4 hover:border-red-700">
-          <div className="flex items-center gap-2 text-red-400 font-medium text-sm"><AlertTriangle size={16} /> RENT PAYMENTS OVERDUE</div>
+        <button onClick={() => setActive("rent")} className="w-full text-left glass border-red-500/30 rounded-lg p-4 fade-up hover:border-red-700">
+          <div className="flex items-center gap-2 text-red-400 font-medium text-sm"><AlertTriangle size={16} className="pulse-dot" /> RENT PAYMENTS OVERDUE</div>
           <div className="text-red-300 text-sm mt-1">{overdue.length} rental payment(s) have passed the 5-day grace period.</div>
         </button>
       )}
