@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, Children } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import {
   LogOut, AlertTriangle, Home, Building2, PlusCircle, BarChart3,
@@ -116,8 +116,8 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const options = (Array.isArray(children) ? children : [children])
-    .filter(Boolean)
+  const options = Children.toArray(children)
+    .filter((c: any) => c && c.props)
     .map((c: any) => ({ value: c.props.value, label: c.props.children, disabled: c.props.disabled }));
 
   const current = options.find((o: any) => o.value === value);
