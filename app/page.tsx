@@ -5,7 +5,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import {
   LogOut, AlertTriangle, Home, Building2, PlusCircle, BarChart3,
   Wallet, Receipt, FileText, Settings as SettingsIcon, Printer,
-  ChevronRight, ChevronDown, Loader2, X, CheckCircle2,
+  ChevronRight, ChevronDown, Loader2, X, CheckCircle2, Users,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +40,11 @@ type RentRow = {
   monthly_rent: number; asset_id: string; asset_name: string; category: string;
   property_name: string; tenant_id: string | null; tenant_name: string | null;
   rent_month: string; amount_received: number; rent_status: "PAID" | "PENDING" | "OVERDUE" | "VACANT";
+};
+type StaffMember = { id: string; code: string | null; name: string; cnic: string; role: string; monthly_salary: number; is_active: boolean };
+type SalaryPayment = {
+  id: string; staff_id: string; salary_month: string; amount: number;
+  payment_method: string; payment_date: string; notes: string | null; voided: boolean;
 };
 
 const money = (n: number) =>
@@ -345,14 +350,14 @@ function Card({ label, value, tone = "gold" }: { label: string; value: string; t
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, label }: { status: string; label?: string }) {
   const map: Record<string, string> = {
     PAID: "bg-green-950 text-green-400 border-green-900",
     PENDING: "bg-yellow-950 text-yellow-400 border-yellow-900",
     OVERDUE: "bg-red-950 text-red-400 border-red-900",
     VACANT: "bg-gray-900 text-[var(--text-secondary)] border-gray-800",
   };
-  return <span className={`text-[11px] px-2 py-0.5 rounded border ${map[status] || map.VACANT}`}>{status}</span>;
+  return <span className={`text-[11px] px-2 py-0.5 rounded border ${map[status] || map.VACANT}`}>{label || status}</span>;
 }
 
 function Toast({ msg }: { msg: { text: string; kind: "ok" | "err" } | null }) {
@@ -377,10 +382,11 @@ function useCoreData() {
   const [incomeCats, setIncomeCats] = useState<Category[]>([]);
   const [expenseCats, setExpenseCats] = useState<Category[]>([]);
   const [rentStatus, setRentStatus] = useState<RentRow[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [ready, setReady] = useState(false);
 
   const reload = useCallback(async () => {
-    const [p, a, u, rt, ic, ec, rs] = await Promise.all([
+    const [p, a, u, rt, ic, ec, rs, sm] = await Promise.all([
       supabase.from("properties").select("*").order("name"),
       supabase.from("assets").select("*").order("name"),
       supabase.from("units").select("*").order("name"),
@@ -388,6 +394,7 @@ function useCoreData() {
       supabase.from("income_categories").select("*").order("name"),
       supabase.from("expense_categories").select("*").order("name"),
       supabase.from("v_current_rent_status").select("*"),
+      supabase.from("staff_members").select("*").order("name"),
     ]);
     setProperties(p.data || []);
     setAssets(a.data || []);
@@ -396,12 +403,13 @@ function useCoreData() {
     setIncomeCats(ic.data || []);
     setExpenseCats(ec.data || []);
     setRentStatus((rs.data as any) || []);
+    setStaffMembers(sm.data || []);
     setReady(true);
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
 
-  return { properties, assets, units, roomTypes, incomeCats, expenseCats, rentStatus, ready, reload };
+  return { properties, assets, units, roomTypes, incomeCats, expenseCats, rentStatus, staffMembers, ready, reload };
 }
 
 // ---------------------------------------------------------------------------
@@ -416,15 +424,17 @@ function StaffApp({ profile }: { profile: Profile }) {
   const loadMine = useCallback(async () => {
     const since = new Date(); since.setDate(since.getDate() - 14);
     const sinceStr = since.toISOString().slice(0, 10);
-    const [r, i, e] = await Promise.all([
+    const [r, i, e, s] = await Promise.all([
       supabase.from("rent_payments").select("*, units(name)").eq("created_by", profile.id).gte("payment_date", sinceStr).order("created_at", { ascending: false }),
       supabase.from("income_transactions").select("*, assets(name), income_categories(name)").eq("created_by", profile.id).gte("txn_date", sinceStr).order("created_at", { ascending: false }),
       supabase.from("expense_transactions").select("*, assets(name), expense_categories(name)").eq("created_by", profile.id).gte("txn_date", sinceStr).order("created_at", { ascending: false }),
+      supabase.from("salary_payments").select("*, staff_members(name)").eq("created_by", profile.id).gte("payment_date", sinceStr).order("created_at", { ascending: false }),
     ]);
     const rows = [
       ...(r.data || []).map((x: any) => ({ kind: "Rental Income", label: x.units?.name, amount: x.amount, date: x.payment_date, created_at: x.created_at })),
       ...(i.data || []).map((x: any) => ({ kind: "Other Income", label: `${x.assets?.name} — ${x.income_categories?.name}`, amount: x.amount, date: x.txn_date, created_at: x.created_at })),
       ...(e.data || []).map((x: any) => ({ kind: "Expense", label: `${x.assets?.name} — ${x.expense_categories?.name}`, amount: x.amount, date: x.txn_date, created_at: x.created_at })),
+      ...(s.data || []).map((x: any) => ({ kind: "Staff Salary", label: x.staff_members?.name, amount: x.amount, date: x.payment_date, created_at: x.created_at })),
     ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     setMyEntries(rows);
   }, [profile.id]);
@@ -438,6 +448,7 @@ function StaffApp({ profile }: { profile: Profile }) {
     { key: "rental", label: "Rental Income", icon: Wallet },
     { key: "other", label: "Other Income", icon: PlusCircle },
     { key: "expense", label: "Expense", icon: Receipt },
+    { key: "salary", label: "Staff Salaries", icon: Users },
     { key: "mine", label: "My Entries", icon: FileText },
   ];
 
@@ -458,7 +469,7 @@ function StaffApp({ profile }: { profile: Profile }) {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button onClick={() => setActive("rental")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
               <Wallet className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Rental Income</div>
             </button>
@@ -467,6 +478,9 @@ function StaffApp({ profile }: { profile: Profile }) {
             </button>
             <button onClick={() => setActive("expense")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
               <Receipt className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Expense</div>
+            </button>
+            <button onClick={() => setActive("salary")} className="glass hover:border-[var(--gold)]/50 rounded-lg p-5 text-left">
+              <Users className="text-gold mb-2" size={20} /><div className="font-medium text-sm">+ Staff Salaries</div>
             </button>
           </div>
           <div>
@@ -478,6 +492,7 @@ function StaffApp({ profile }: { profile: Profile }) {
       {active === "rental" && <RentalEntryForm core={core} profile={profile} onDone={() => { show("Rental payment recorded."); core.reload(); }} />}
       {active === "other" && <OtherIncomeForm core={core} profile={profile} onDone={() => { show("Other income recorded."); core.reload(); }} />}
       {active === "expense" && <ExpenseForm core={core} profile={profile} onDone={() => { show("Expense recorded."); core.reload(); }} />}
+      {active === "salary" && <SalaryForm core={core} profile={profile} onDone={() => { show("Salary marked as paid."); core.reload(); }} />}
       {active === "mine" && (
         <div>
           <h1 className="text-lg font-semibold mb-4">My Entries — Last 14 Days</h1>
@@ -777,6 +792,97 @@ function ExpenseForm({ core, profile, onDone }: any) {
   );
 }
 
+function SalaryForm({ core, profile, onDone }: any) {
+  const [staffId, setStaffId] = useState("");
+  const [month, setMonth] = useState(monthStart());
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("cash");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [paidThisMonth, setPaidThisMonth] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const activeStaff = core.staffMembers.filter((s: StaffMember) => s.is_active);
+  const selectedStaff = core.staffMembers.find((s: StaffMember) => s.id === staffId);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("salary_payments").select("staff_id").eq("salary_month", month).eq("voided", false);
+      const map: Record<string, boolean> = {};
+      (data || []).forEach((r: any) => (map[r.staff_id] = true));
+      setPaidThisMonth(map);
+    })();
+  }, [month]);
+
+  useEffect(() => {
+    if (selectedStaff) setAmount(String(selectedStaff.monthly_salary));
+  }, [staffId]); // eslint-disable-line
+
+  const alreadyPaid = staffId ? !!paidThisMonth[staffId] : false;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (!staffId) { setErr("Please select a staff member."); return; }
+    if (alreadyPaid) { setErr("This staff member's salary is already marked paid for this month."); return; }
+    if (!amount || Number(amount) <= 0) { setErr("Amount must be positive."); return; }
+    setBusy(true);
+    const { error } = await supabase.from("salary_payments").insert({
+      staff_id: staffId, salary_month: month, amount: Number(amount),
+      payment_method: method, payment_date: date, notes: notes || null, created_by: profile.id,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setStaffId(""); setAmount(""); setNotes("");
+    onDone();
+  };
+
+  return (
+    <form onSubmit={submit} className="max-w-lg space-y-4">
+      <h1 className="text-lg font-semibold mb-2">Staff Salaries</h1>
+      {err && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>}
+      <Field label="Staff Member">
+        <Dropdown value={staffId} onChange={(e: any) => setStaffId(e.target.value)} className={selectClass}>
+          <option value="">Select staff member...</option>
+          {activeStaff.map((s: StaffMember) => (
+            <option key={s.id} value={s.id}>{s.name} — {s.role} {paidThisMonth[s.id] ? "(Paid this month)" : ""}</option>
+          ))}
+        </Dropdown>
+      </Field>
+
+      {selectedStaff && (
+        <div className="text-xs text-[var(--text-secondary)] glass rounded-lg px-3 py-2 space-y-0.5">
+          <div>Role: <span className="text-[var(--text)]">{selectedStaff.role}</span></div>
+          <div>CNIC: <span className="text-[var(--text)]">{selectedStaff.cnic}</span></div>
+          <div>Gross monthly salary (incl. all allowances): <span className="text-champagne">{money(selectedStaff.monthly_salary)}</span></div>
+        </div>
+      )}
+
+      {alreadyPaid && (
+        <div className="text-yellow-400 text-sm bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
+          This staff member is already marked paid for {new Date(month).toLocaleString("en-US", { month: "long", year: "numeric" })}.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Salary Month"><input value={month} onChange={(e) => setMonth(e.target.value)} type="date" required className={inputClass} /></Field>
+        <Field label="Amount"><input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="1" step="0.01" required className={inputClass} /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Payment Method">
+          <Dropdown value={method} onChange={(e: any) => setMethod(e.target.value)} className={selectClass}>
+            <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
+          </Dropdown>
+        </Field>
+        <Field label="Payment Date"><input value={date} onChange={(e) => setDate(e.target.value)} type="date" required className={inputClass} /></Field>
+      </div>
+      <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} /></Field>
+      <SubmitBtn busy={busy || alreadyPaid} label={alreadyPaid ? "Already Paid This Month" : "Mark Salary Paid"} />
+    </form>
+  );
+}
+
 const inputClass = "w-full glass-input rounded-lg px-3 py-2 text-sm";
 const selectClass = inputClass;
 function Field({ label, children }: any) {
@@ -805,6 +911,7 @@ function AdminApp({ profile }: { profile: Profile }) {
     { key: "rent", label: "Rent Management", icon: Wallet },
     { key: "income", label: "Income", icon: PlusCircle },
     { key: "expenses", label: "Expenses", icon: Receipt },
+    { key: "salaries", label: "Salaries", icon: Users },
     { key: "analytics", label: "Analytics", icon: BarChart3 },
     { key: "reports", label: "Reports", icon: FileText },
     { key: "settings", label: "Settings", icon: SettingsIcon },
@@ -819,6 +926,7 @@ function AdminApp({ profile }: { profile: Profile }) {
       {active === "rent" && <RentManagement core={core} />}
       {active === "income" && <IncomeView core={core} />}
       {active === "expenses" && <ExpensesView core={core} />}
+      {active === "salaries" && <SalariesView core={core} show={show} />}
       {active === "analytics" && <AnalyticsView core={core} />}
       {active === "reports" && <ReportsView core={core} />}
       {active === "settings" && <SettingsView core={core} show={show} />}
@@ -834,19 +942,22 @@ function AdminDashboard({ core, setActive }: any) {
 
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState(0);
+  const [salaries, setSalaries] = useState(0);
   useEffect(() => {
     (async () => {
       const start = monthStart();
-      const [i, e] = await Promise.all([
+      const [i, e, s] = await Promise.all([
         supabase.from("income_transactions").select("amount").eq("voided", false).gte("txn_date", start),
         supabase.from("expense_transactions").select("amount").eq("voided", false).gte("txn_date", start),
+        supabase.from("salary_payments").select("amount").eq("voided", false).eq("salary_month", start),
       ]);
       setIncome((i.data || []).reduce((s: number, r: any) => s + Number(r.amount), 0));
       setExpenses((e.data || []).reduce((s: number, r: any) => s + Number(r.amount), 0));
+      setSalaries((s.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0));
     })();
   }, []);
 
-  const netProfit = rentReceived + income - expenses;
+  const netProfit = rentReceived + income - expenses - salaries;
 
   return (
     <div className="space-y-6">
@@ -857,12 +968,13 @@ function AdminDashboard({ core, setActive }: any) {
           <div className="text-red-300 text-sm mt-1">{overdue.length} rental payment(s) have passed the 5-day grace period.</div>
         </button>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card label="Expected Monthly Rent" value={money(expectedRent)} />
         <Card label="Rent Received" value={money(rentReceived)} tone="green" />
         <Card label="Rent Outstanding" value={money(outstanding)} tone="red" />
         <Card label="Other Income" value={money(income)} />
         <Card label="Total Expenses" value={money(expenses)} tone="red" />
+        <Card label="Staff Salaries Paid" value={money(salaries)} tone="red" />
         <Card label="Net Profit" value={money(netProfit)} tone={netProfit >= 0 ? "green" : "red"} />
       </div>
     </div>
@@ -1114,6 +1226,127 @@ function ExpensesView({ core }: any) {
   );
 }
 
+function SalariesView({ core, show }: any) {
+  const [monthPaidMap, setMonthPaidMap] = useState<Record<string, any>>({});
+  const [name, setName] = useState("");
+  const [cnic, setCnic] = useState("");
+  const [role, setRole] = useState("");
+  const [salary, setSalary] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSalary, setEditSalary] = useState("");
+
+  const month = monthStart();
+
+  const loadPaidStatus = useCallback(async () => {
+    const { data } = await supabase.from("salary_payments").select("*").eq("salary_month", month).eq("voided", false);
+    const map: Record<string, any> = {};
+    (data || []).forEach((r: any) => (map[r.staff_id] = r));
+    setMonthPaidMap(map);
+  }, [month]);
+
+  useEffect(() => { loadPaidStatus(); }, [loadPaidStatus, core.staffMembers.length]);
+
+  const totalPayroll = core.staffMembers.filter((s: StaffMember) => s.is_active).reduce((sum: number, s: StaffMember) => sum + Number(s.monthly_salary), 0);
+  const totalPaid = Object.values(monthPaidMap).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+  const totalUnpaid = Math.max(0, totalPayroll - totalPaid);
+
+  const addStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !role.trim() || !salary || Number(salary) <= 0) return;
+    setBusy(true);
+    const { error } = await supabase.from("staff_members").insert({
+      name: name.trim(), cnic: cnic.trim() || "N/A", role: role.trim(), monthly_salary: Number(salary),
+    });
+    setBusy(false);
+    if (error) { show(error.message, "err"); return; }
+    show("Staff member added.");
+    setName(""); setCnic(""); setRole(""); setSalary("");
+    core.reload();
+  };
+
+  const saveSalary = async (staffId: string) => {
+    if (!editSalary || Number(editSalary) <= 0) return;
+    const { error } = await supabase.from("staff_members").update({ monthly_salary: Number(editSalary) }).eq("id", staffId);
+    if (error) { show(error.message, "err"); return; }
+    show("Salary updated.");
+    setEditingId(null);
+    core.reload();
+  };
+
+  const toggleActive = async (staffId: string, isActive: boolean) => {
+    const { error } = await supabase.from("staff_members").update({ is_active: !isActive }).eq("id", staffId);
+    if (!error) { show(isActive ? "Marked inactive." : "Marked active."); core.reload(); }
+  };
+
+  return (
+    <div>
+      <h1 className="text-lg font-semibold mb-4">Staff Salaries</h1>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        <Card label={`Payroll — ${new Date(month).toLocaleString("en-US", { month: "long", year: "numeric" })}`} value={money(totalPayroll)} />
+        <Card label="Paid This Month" value={money(totalPaid)} tone="green" />
+        <Card label="Unpaid This Month" value={money(totalUnpaid)} tone="red" />
+      </div>
+
+      <div className="glass rounded-lg p-4 mb-6 fade-up">
+        <div className="text-sm text-[var(--text-secondary)] mb-3">Add a staff member</div>
+        <form onSubmit={addStaff} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required className={inputClass} />
+          <input value={cnic} onChange={(e) => setCnic(e.target.value)} placeholder="CNIC (or leave blank for N/A)" className={inputClass} />
+          <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role / Designation" required className={inputClass} />
+          <input value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="Gross monthly salary" type="number" min="1" required className={inputClass} />
+          <div className="col-span-2 md:col-span-4"><SubmitBtn busy={busy} label="Add Staff Member" /></div>
+        </form>
+      </div>
+
+      <div className="overflow-x-auto glass rounded-lg">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+            <th className="p-3">Name</th><th className="p-3">CNIC</th><th className="p-3">Role</th>
+            <th className="p-3">Gross Salary</th><th className="p-3">This Month</th><th className="p-3">Active</th>
+          </tr></thead>
+          <tbody>
+            {core.staffMembers.map((s: StaffMember) => {
+              const paidRow = monthPaidMap[s.id];
+              return (
+                <tr key={s.id} className="border-b border-white/5 last:border-0">
+                  <td className="p-3">{s.name}{s.code ? <span className="text-[var(--text-secondary)] text-xs ml-1">({s.code})</span> : null}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{s.cnic}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{s.role}</td>
+                  <td className="p-3">
+                    {editingId === s.id ? (
+                      <div className="flex items-center gap-2">
+                        <input value={editSalary} onChange={(e) => setEditSalary(e.target.value)} type="number" className="w-28 glass-input rounded-lg px-2 py-1 text-xs" />
+                        <button type="button" onClick={() => saveSalary(s.id)} className="text-xs text-gold underline">Save</button>
+                        <button type="button" onClick={() => setEditingId(null)} className="text-xs text-[var(--text-secondary)]">Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => { setEditingId(s.id); setEditSalary(String(s.monthly_salary)); }} className="text-champagne hover:underline">
+                        {money(s.monthly_salary)}
+                      </button>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {paidRow ? <StatusBadge status="PAID" /> : <StatusBadge status="OVERDUE" label="UNPAID" />}
+                  </td>
+                  <td className="p-3">
+                    <button type="button" onClick={() => toggleActive(s.id, s.is_active)}
+                      className={`text-xs px-2 py-1 rounded-lg border ${s.is_active ? "border-[var(--success)]/40 text-[var(--success)]" : "border-white/10 text-[var(--text-secondary)]"}`}>
+                      {s.is_active ? "Active" : "Inactive"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!core.staffMembers.length && <tr><td colSpan={6} className="p-6 text-center text-[var(--text-secondary)]">No staff members added yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function AnalyticsView({ core }: any) {
   const [selected, setSelected] = useState("ALL");
   const [fin, setFin] = useState<any[]>([]);
@@ -1167,13 +1400,15 @@ function ReportsView({ core }: any) {
   const dr = useDateRange();
   const [income, setIncome] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [salaries, setSalaries] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
-      const [i, e] = await Promise.all([
+      const [i, e, s] = await Promise.all([
         supabase.from("income_transactions").select("amount, assets(name)").eq("voided", false).gte("txn_date", dr.start).lte("txn_date", dr.end),
         supabase.from("expense_transactions").select("amount, assets(name)").eq("voided", false).gte("txn_date", dr.start).lte("txn_date", dr.end),
+        supabase.from("salary_payments").select("amount").eq("voided", false).gte("payment_date", dr.start).lte("payment_date", dr.end),
       ]);
-      setIncome(i.data || []); setExpenses(e.data || []);
+      setIncome(i.data || []); setExpenses(e.data || []); setSalaries(s.data || []);
     })();
   }, [dr.start, dr.end]);
 
@@ -1181,7 +1416,8 @@ function ReportsView({ core }: any) {
   const rentReceived = core.rentStatus.reduce((s: number, r: RentRow) => s + Number(r.amount_received), 0);
   const totalIncome = income.reduce((s, r) => s + Number(r.amount), 0);
   const totalExpenses = expenses.reduce((s, r) => s + Number(r.amount), 0);
-  const netProfit = rentReceived + totalIncome - totalExpenses;
+  const totalSalaries = salaries.reduce((s, r) => s + Number(r.amount), 0);
+  const netProfit = rentReceived + totalIncome - totalExpenses - totalSalaries;
   const collectionRate = expectedRent > 0 ? ((rentReceived / expectedRent) * 100).toFixed(1) : "0";
 
   return (
@@ -1197,12 +1433,13 @@ function ReportsView({ core }: any) {
         <div className="text-xs text-[var(--text-secondary)] mt-1">Financial Report: {dr.start} to {dr.end}</div>
         <div className="text-[11px] text-gray-600">Generated {new Date().toLocaleString()}</div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Card label="Expected Rent" value={money(expectedRent)} />
         <Card label="Rent Received" value={money(rentReceived)} tone="green" />
         <Card label="Collection Rate" value={collectionRate + "%"} />
         <Card label="Rental + Other Income" value={money(rentReceived + totalIncome)} tone="green" />
         <Card label="Total Expenses" value={money(totalExpenses)} tone="red" />
+        <Card label="Staff Salaries Paid" value={money(totalSalaries)} tone="red" />
         <Card label="Net Profit" value={money(netProfit)} tone={netProfit >= 0 ? "green" : "red"} />
       </div>
       <div className="text-sm text-[var(--text-secondary)]">Use the Income and Expenses tabs for detailed, filterable transaction lists — this summary is optimized for printing.</div>
