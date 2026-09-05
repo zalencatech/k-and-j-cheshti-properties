@@ -926,7 +926,7 @@ function AdminApp({ profile }: { profile: Profile }) {
       {active === "rent" && <RentManagement core={core} />}
       {active === "income" && <IncomeView core={core} />}
       {active === "expenses" && <ExpensesView core={core} />}
-      {active === "salaries" && <SalariesView core={core} show={show} />}
+      {active === "salaries" && <SalariesView core={core} show={show} profile={profile} />}
       {active === "analytics" && <AnalyticsView core={core} />}
       {active === "reports" && <ReportsView core={core} />}
       {active === "settings" && <SettingsView core={core} show={show} />}
@@ -1226,7 +1226,7 @@ function ExpensesView({ core }: any) {
   );
 }
 
-function SalariesView({ core, show }: any) {
+function SalariesView({ core, show, profile }: any) {
   const [monthPaidMap, setMonthPaidMap] = useState<Record<string, any>>({});
   const [name, setName] = useState("");
   const [cnic, setCnic] = useState("");
@@ -1235,11 +1235,12 @@ function SalariesView({ core, show }: any) {
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editSalary, setEditSalary] = useState("");
+  const [editingPayment, setEditingPayment] = useState<any>(null);
 
   const month = monthStart();
 
   const loadPaidStatus = useCallback(async () => {
-    const { data } = await supabase.from("salary_payments").select("*").eq("salary_month", month).eq("voided", false);
+    const { data } = await supabase.from("salary_payments").select("*, staff_members(name)").eq("salary_month", month).eq("voided", false).order("payment_date", { ascending: false });
     const map: Record<string, any> = {};
     (data || []).forEach((r: any) => (map[r.staff_id] = r));
     setMonthPaidMap(map);
@@ -1277,6 +1278,29 @@ function SalariesView({ core, show }: any) {
   const toggleActive = async (staffId: string, isActive: boolean) => {
     const { error } = await supabase.from("staff_members").update({ is_active: !isActive }).eq("id", staffId);
     if (!error) { show(isActive ? "Marked inactive." : "Marked active."); core.reload(); }
+  };
+
+  const saveEditedPayment = async () => {
+    if (!editingPayment) return;
+    const { error } = await supabase.from("salary_payments").update({
+      amount: Number(editingPayment.amount),
+      payment_method: editingPayment.payment_method,
+      payment_date: editingPayment.payment_date,
+      notes: editingPayment.notes || null,
+      updated_by: profile.id,
+    }).eq("id", editingPayment.id);
+    if (error) { show(error.message, "err"); return; }
+    show("Payment updated.");
+    setEditingPayment(null);
+    loadPaidStatus();
+  };
+
+  const voidPayment = async (id: string) => {
+    const { error } = await supabase.from("salary_payments").update({ voided: true }).eq("id", id);
+    if (error) { show(error.message, "err"); return; }
+    show("Payment voided — it no longer counts toward totals.");
+    setEditingPayment(null);
+    loadPaidStatus();
   };
 
   return (
@@ -1328,7 +1352,13 @@ function SalariesView({ core, show }: any) {
                     )}
                   </td>
                   <td className="p-3">
-                    {paidRow ? <StatusBadge status="PAID" /> : <StatusBadge status="OVERDUE" label="UNPAID" />}
+                    {paidRow ? (
+                      <button type="button" onClick={() => setEditingPayment({ ...paidRow })} className="hover:opacity-80">
+                        <StatusBadge status="PAID" />
+                      </button>
+                    ) : (
+                      <StatusBadge status="OVERDUE" label="UNPAID" />
+                    )}
                   </td>
                   <td className="p-3">
                     <button type="button" onClick={() => toggleActive(s.id, s.is_active)}
@@ -1343,6 +1373,40 @@ function SalariesView({ core, show }: any) {
           </tbody>
         </table>
       </div>
+
+      <div className="text-xs text-[var(--text-secondary)] mt-3">Click a "PAID" badge above to correct that payment's amount, method, date, or notes — or void it if it was recorded by mistake.</div>
+
+      {editingPayment && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4" onClick={() => setEditingPayment(null)}>
+          <div className="glass-strong rounded-2xl p-6 w-full max-w-sm fade-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm">Edit Salary Payment — {editingPayment.staff_members?.name}</h3>
+              <button onClick={() => setEditingPayment(null)}><X size={16} className="text-[var(--text-secondary)]" /></button>
+            </div>
+            <div className="space-y-3">
+              <Field label="Amount">
+                <input value={editingPayment.amount} onChange={(e) => setEditingPayment({ ...editingPayment, amount: e.target.value })} type="number" className={inputClass} />
+              </Field>
+              <Field label="Payment Method">
+                <Dropdown value={editingPayment.payment_method} onChange={(e: any) => setEditingPayment({ ...editingPayment, payment_method: e.target.value })} className={selectClass}>
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </Dropdown>
+              </Field>
+              <Field label="Payment Date">
+                <input value={editingPayment.payment_date} onChange={(e) => setEditingPayment({ ...editingPayment, payment_date: e.target.value })} type="date" className={inputClass} />
+              </Field>
+              <Field label="Notes">
+                <textarea value={editingPayment.notes || ""} onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })} className={inputClass} rows={2} />
+              </Field>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={saveEditedPayment} className="flex-1 btn-gold rounded-lg py-2 text-sm">Save Changes</button>
+                <button type="button" onClick={() => voidPayment(editingPayment.id)} className="px-3 rounded-lg border border-red-500/40 text-red-400 text-sm hover:bg-red-500/10">Void</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
