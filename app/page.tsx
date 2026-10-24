@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback, useRef, Children } from "react";
+import { createPortal } from "react-dom";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import {
   LogOut, AlertTriangle, Home, Building2, PlusCircle, BarChart3,
   Wallet, Receipt, FileText, Settings as SettingsIcon, Printer,
-  ChevronRight, ChevronDown, Loader2, X, CheckCircle2, Users,
+  ChevronRight, ChevronDown, Loader2, X, CheckCircle2, Users, BedDouble, UserPlus, ArrowLeft, Search,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -50,8 +51,10 @@ type SalaryPayment = {
 const money = (n: number) =>
   "PKR " + Math.round(n || 0).toLocaleString("en-PK");
 
-const monthStart = (d = new Date()) =>
-  new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+const fmtDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayStr = () => fmtDate(new Date());
+const monthStart = (d = new Date()) => fmtDate(new Date(d.getFullYear(), d.getMonth(), 1));
 
 function useToast() {
   const [msg, setMsg] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
@@ -172,7 +175,7 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
         </span>
         <ChevronDown size={14} className={`text-gold shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <div
           ref={panelRef}
           style={{
@@ -206,7 +209,7 @@ function Dropdown({ value, onChange, children, className, placeholder }: any) {
             </button>
           ))}
         </div>
-      )}
+        , document.body)}
     </>
   );
 }
@@ -423,7 +426,7 @@ function StaffApp({ profile }: { profile: Profile }) {
 
   const loadMine = useCallback(async () => {
     const since = new Date(); since.setDate(since.getDate() - 14);
-    const sinceStr = since.toISOString().slice(0, 10);
+    const sinceStr = fmtDate(since);
     const [r, i, e, s] = await Promise.all([
       supabase.from("rent_payments").select("*, units(name)").eq("created_by", profile.id).gte("payment_date", sinceStr).order("created_at", { ascending: false }),
       supabase.from("income_transactions").select("*, assets(name), income_categories(name)").eq("created_by", profile.id).gte("txn_date", sinceStr).order("created_at", { ascending: false }),
@@ -538,7 +541,7 @@ function RentalEntryForm({ core, profile, onDone }: any) {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
   const [month, setMonth] = useState(monthStart());
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(todayStr());
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -669,7 +672,7 @@ function OtherIncomeForm({ core, profile, onDone }: any) {
   const [catId, setCatId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -726,7 +729,7 @@ function ExpenseForm({ core, profile, onDone }: any) {
   const [catId, setCatId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [paidTo, setPaidTo] = useState("");
   const [desc, setDesc] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -797,7 +800,7 @@ function SalaryForm({ core, profile, onDone }: any) {
   const [month, setMonth] = useState(monthStart());
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [notes, setNotes] = useState("");
   const [paidThisMonth, setPaidThisMonth] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -908,6 +911,7 @@ function AdminApp({ profile }: { profile: Profile }) {
     { key: "dashboard", label: "Dashboard", icon: Home },
     { key: "residential", label: "Residential", icon: Building2 },
     { key: "commercial", label: "Commercial", icon: Building2 },
+    { key: "hostel", label: "Hostel Management", icon: BedDouble },
     { key: "rent", label: "Rent Management", icon: Wallet },
     { key: "income", label: "Income", icon: PlusCircle },
     { key: "expenses", label: "Expenses", icon: Receipt },
@@ -923,6 +927,7 @@ function AdminApp({ profile }: { profile: Profile }) {
       {active === "dashboard" && <AdminDashboard core={core} setActive={setActive} />}
       {active === "residential" && <AssetsBrowser core={core} category="residential" />}
       {active === "commercial" && <AssetsBrowser core={core} category="commercial" />}
+      {active === "hostel" && <HostelManagement core={core} show={show} profile={profile} />}
       {active === "rent" && <RentManagement core={core} />}
       {active === "income" && <IncomeView core={core} />}
       {active === "expenses" && <ExpensesView core={core} />}
@@ -1027,13 +1032,17 @@ function AssetsBrowser({ core, category }: { core: any; category: "commercial" |
                 <td className="p-3 text-[var(--text-secondary)]">{[u.floor, u.room].filter(Boolean).join(" / ") || "—"}</td>
                 <td className="p-3 text-champagne">{money(u.monthly_rent)}</td>
                 <td className="p-3 w-40">
-                  <Dropdown value={u.status} onChange={(e: any) => updateStatus(u.id, e.target.value)}
-                    className="glass-input rounded-lg px-2 py-1 text-xs">
-                    <option value="occupied">Occupied</option>
-                    <option value="vacant">Vacant</option>
-                    <option value="reserved">Reserved</option>
-                    <option value="maintenance">Maintenance</option>
-                  </Dropdown>
+                  {u.unit_type === "bed" && u.status === "occupied" ? (
+                    <span className="text-xs text-[var(--success)]">Occupied (Hostel Mgmt)</span>
+                  ) : (
+                    <Dropdown value={u.status} onChange={(e: any) => updateStatus(u.id, e.target.value)}
+                      className="glass-input rounded-lg px-2 py-1 text-xs">
+                      {u.unit_type !== "bed" && <option value="occupied">Occupied</option>}
+                      <option value="vacant">Vacant</option>
+                      <option value="reserved">Reserved</option>
+                      <option value="maintenance">Maintenance</option>
+                    </Dropdown>
+                  )}
                 </td>
               </tr>
             ))}
@@ -1083,14 +1092,14 @@ function RentManagement({ core }: any) {
 function useDateRange() {
   const [range, setRange] = useState("month");
   const [start, setStart] = useState(monthStart());
-  const [end, setEnd] = useState(new Date().toISOString().slice(0, 10));
+  const [end, setEnd] = useState(todayStr());
   useEffect(() => {
     const now = new Date();
-    if (range === "today") { const t = now.toISOString().slice(0, 10); setStart(t); setEnd(t); }
-    else if (range === "week") { const d = new Date(now); d.setDate(d.getDate() - 7); setStart(d.toISOString().slice(0, 10)); setEnd(now.toISOString().slice(0, 10)); }
-    else if (range === "month") { setStart(monthStart()); setEnd(now.toISOString().slice(0, 10)); }
-    else if (range === "year") { setStart(`${now.getFullYear()}-01-01`); setEnd(now.toISOString().slice(0, 10)); }
-    else if (range === "all") { setStart("2000-01-01"); setEnd(now.toISOString().slice(0, 10)); }
+    if (range === "today") { const t = fmtDate(now); setStart(t); setEnd(t); }
+    else if (range === "week") { const d = new Date(now); d.setDate(d.getDate() - 7); setStart(fmtDate(d)); setEnd(fmtDate(now)); }
+    else if (range === "month") { setStart(monthStart()); setEnd(fmtDate(now)); }
+    else if (range === "year") { setStart(`${now.getFullYear()}-01-01`); setEnd(fmtDate(now)); }
+    else if (range === "all") { setStart("2000-01-01"); setEnd(fmtDate(now)); }
   }, [range]);
   return { range, setRange, start, end, setStart, setEnd };
 }
@@ -1191,6 +1200,10 @@ function ExpensesView({ core }: any) {
 
       {Object.keys(byCategory).length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
+          <div className="glass rounded-xl p-3 border-[var(--gold)]/50">
+            <div className="text-[11px] text-gold font-semibold tracking-wide">TOTAL EXPENSES</div>
+            <div className="text-sm text-[var(--danger)] font-semibold mt-1">{money(total)}</div>
+          </div>
           {Object.entries(byCategory).map(([name, amt]) => (
             <div key={name} className="glass rounded p-3">
               <div className="text-[11px] text-[var(--text-secondary)]">{name}</div>
@@ -1506,6 +1519,7 @@ function ReportsView({ core }: any) {
         <Card label="Staff Salaries Paid" value={money(totalSalaries)} tone="red" />
         <Card label="Net Profit" value={money(netProfit)} tone={netProfit >= 0 ? "green" : "red"} />
       </div>
+      <HostelProgress core={core} />
       <div className="text-sm text-[var(--text-secondary)]">Use the Income and Expenses tabs for detailed, filterable transaction lists — this summary is optimized for printing.</div>
     </div>
   );
@@ -1620,9 +1634,7 @@ function HostelSetup({ core, show }: any) {
   return (
     <div className="max-w-2xl">
       <div className="text-sm text-[var(--text-secondary)] mb-3">
-        Barkat Market Heights Boys Hostel has 125 beds across the top 3 floors. The exact floor/room
-        layout wasn't specified up front, so add beds here as you finalize the layout — each bed
-        automatically inherits its rent from the selected room type.
+        Barkat Market Heights Boys Hostel: 3 floors, 15 rooms per floor (101–115, 201–215, 301–315). Beds are named A, B, C… per room and start as vacant — beds only become occupied when a student is enrolled in the Hostel Management tab. Use this form only if you ever need to add an extra bed.
       </div>
       <form onSubmit={addBed} className="grid grid-cols-2 gap-3 glass rounded-lg p-4 mb-6">
         <Field label="Floor"><input value={floor} onChange={(e) => setFloor(e.target.value)} className={inputClass} placeholder="e.g. 3rd Floor" required /></Field>
@@ -1636,7 +1648,7 @@ function HostelSetup({ core, show }: any) {
         </Field>
         <div className="col-span-2"><SubmitBtn busy={busy} label="Add Bed" /></div>
       </form>
-      <div className="text-sm text-[var(--text-secondary)] mb-2">{beds.length} of 125 beds configured</div>
+      <div className="text-sm text-[var(--text-secondary)] mb-2">{beds.length} beds configured</div>
       <div className="overflow-x-auto glass rounded-lg">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10"><th className="p-3">Floor</th><th className="p-3">Room</th><th className="p-3">Bed</th><th className="p-3">Type</th><th className="p-3">Rent</th><th className="p-3">Status</th></tr></thead>
@@ -1648,13 +1660,16 @@ function HostelSetup({ core, show }: any) {
                   <td className="p-3">{b.floor}</td><td className="p-3">{b.room}</td><td className="p-3">{b.name.split("— ")[1]}</td>
                   <td className="p-3">{rt?.name}</td><td className="p-3">{money(b.monthly_rent)}</td>
                   <td className="p-3 w-40">
-                    <Dropdown value={b.status} onChange={(e: any) => updateBedStatus(b.id, e.target.value)}
-                      className="glass-input rounded-lg px-2 py-1 text-xs">
-                      <option value="occupied">Occupied</option>
-                      <option value="vacant">Vacant</option>
-                      <option value="reserved">Reserved</option>
-                      <option value="maintenance">Maintenance</option>
-                    </Dropdown>
+                    {b.status === "occupied" ? (
+                      <span className="text-xs text-[var(--success)]">Occupied (Hostel Mgmt)</span>
+                    ) : (
+                      <Dropdown value={b.status} onChange={(e: any) => updateBedStatus(b.id, e.target.value)}
+                        className="glass-input rounded-lg px-2 py-1 text-xs">
+                        <option value="vacant">Vacant</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="maintenance">Maintenance</option>
+                      </Dropdown>
+                    )}
                   </td>
                 </tr>
               );
@@ -1662,6 +1677,992 @@ function HostelSetup({ core, show }: any) {
             {!beds.length && <tr><td colSpan={6} className="p-6 text-center text-[var(--text-secondary)]">No beds configured yet.</td></tr>}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// REPORTS: HOSTEL PROGRESS (actual vs ideal 70% occupancy target)
+// ---------------------------------------------------------------------------
+const IDEAL_OCCUPANCY = 0.7;
+const IDEAL_DUE_INDEX = 2027 * 12 + 2; // March 2027
+
+function HostelProgress({ core }: any) {
+  const hostel = core.assets.find((a: Asset) => a.name.includes("Boys Hostel"));
+  const beds: Unit[] = core.units.filter((u: Unit) => u.asset_id === hostel?.id && u.unit_type === "bed");
+  if (!beds.length) return null;
+
+  const totalBeds = beds.length;
+  const occupiedBeds = beds.filter((b) => b.status === "occupied");
+  const actualRent = occupiedBeds.reduce((sum, b) => sum + Number(b.monthly_rent), 0);
+  const potentialRent = beds.reduce((sum, b) => {
+    const rt = core.roomTypes.find((r: RoomType) => r.id === b.room_type_id);
+    return sum + Number(rt ? rt.monthly_rent : b.monthly_rent);
+  }, 0);
+  const actualPct = (occupiedBeds.length / totalBeds) * 100;
+  const idealBeds = Math.ceil(totalBeds * IDEAL_OCCUPANCY);
+  const idealRent = Math.round(potentialRent * IDEAL_OCCUPANCY);
+  const monthsLeft = IDEAL_DUE_INDEX - nowMonthIndex();
+  const bedsToGo = Math.max(0, idealBeds - occupiedBeds.length);
+  const rentToGo = Math.max(0, idealRent - actualRent);
+  const perMonth = monthsLeft > 0 ? Math.ceil(bedsToGo / monthsLeft) : bedsToGo;
+  const progressPct = Math.min(100, (occupiedBeds.length / idealBeds) * 100);
+
+  return (
+    <div className="mb-6">
+      <div className="text-xs tracking-widest text-gold mb-3">HOSTEL PROGRESS — BARKAT MARKET HEIGHTS BOYS HOSTEL</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="glass rounded-xl p-5">
+          <div className="text-sm font-semibold text-champagne mb-4">ACTUAL</div>
+          <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">Bed occupancy</div>
+          <div className="text-2xl font-semibold mt-1">{occupiedBeds.length} <span className="text-base text-[var(--text-secondary)]">out of {totalBeds} beds</span></div>
+          <div className="text-sm text-champagne mt-0.5">{actualPct.toFixed(1)}% occupied</div>
+          <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)] mt-5">Monthly rent from occupied beds</div>
+          <div className="text-xl font-semibold mt-1 text-[var(--success)]">{money(actualRent)}</div>
+          <div className="text-sm text-[var(--text-secondary)] mt-0.5">out of {money(potentialRent)} if all {totalBeds} beds are occupied</div>
+        </div>
+        <div className="glass rounded-xl p-5">
+          <div className="text-sm font-semibold text-champagne mb-4">IDEAL — {Math.round(IDEAL_OCCUPANCY * 100)}% OCCUPANCY</div>
+          <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">Ideal bed occupancy</div>
+          <div className="text-2xl font-semibold mt-1">{idealBeds} <span className="text-base text-[var(--text-secondary)]">out of {totalBeds} beds</span></div>
+          <div className="text-sm text-champagne mt-0.5">{Math.round(IDEAL_OCCUPANCY * 100)}% occupied</div>
+          <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)] mt-5">Ideal monthly rent at {Math.round(IDEAL_OCCUPANCY * 100)}% occupancy</div>
+          <div className="text-xl font-semibold mt-1 text-champagne">{money(idealRent)}</div>
+          <div className="text-sm text-[var(--text-secondary)] mt-0.5">Due date: <span className="text-white font-medium">March 2027</span></div>
+        </div>
+      </div>
+      <div className="glass rounded-xl p-4 mt-4">
+        <div className="flex justify-between text-xs text-[var(--text-secondary)] mb-2">
+          <span>Progress toward ideal occupancy</span><span>{progressPct.toFixed(0)}%</span>
+        </div>
+        <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-full rounded-full btn-gold" style={{ width: `${progressPct}%` }} />
+        </div>
+        <div className="text-xs text-[var(--text-secondary)] mt-3">
+          {bedsToGo > 0
+            ? `${bedsToGo} more bed${bedsToGo === 1 ? "" : "s"} (${money(rentToGo)}/month more rent) needed to reach the ideal. ${
+                monthsLeft > 0 ? `${monthsLeft} month${monthsLeft === 1 ? "" : "s"} left — about ${perMonth} admission${perMonth === 1 ? "" : "s"} per month required.` : "The March 2027 due date has passed."
+              }`
+            : "The ideal occupancy target has been reached."}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// HOSTEL MANAGEMENT SYSTEM
+// ===========================================================================
+type HostelStudent = {
+  id: string; student_code: string; name: string; unit_id: string | null; join_date: string;
+  guardian_name: string | null; guardian_phone: string | null; student_phone: string | null; cnic: string | null;
+  monthly_rent: number; security_deposit: number; contract_signed: boolean; police_verification: boolean;
+  notes: string | null; status: "active" | "left"; left_date: string | null; created_at: string;
+};
+
+const ymIndex = (d: string) => {
+  const [y, m] = d.slice(0, 10).split("-").map(Number);
+  return y * 12 + (m - 1);
+};
+const monthKeyFromIndex = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-01`;
+const nowMonthIndex = () => { const n = new Date(); return n.getFullYear() * 12 + n.getMonth(); };
+const monthLabel = (key: string) => {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+};
+const shortMonthLabel = (i: number) =>
+  new Date(Math.floor(i / 12), i % 12, 1).toLocaleString("en-US", { month: "short", year: "2-digit" });
+const bedLetter = (u: Unit) => (u.name.includes("Bed ") ? u.name.split("Bed ")[1] : u.name);
+const bedFullLabel = (u: Unit) => `${u.floor} · Room ${u.room} · Bed ${bedLetter(u)}`;
+const roomSort = (a: string, b: string) => Number(a) - Number(b);
+
+// Month-by-month rent ledger for a student: rent is billed every month from the join month
+function buildLedger(s: HostelStudent, pays: any[]) {
+  const startIdx = ymIndex(s.join_date);
+  const nowIdx = nowMonthIndex();
+  const endIdx = s.status === "left" && s.left_date ? Math.min(ymIndex(s.left_date), nowIdx) : nowIdx;
+  const mine = pays.filter((p) => p.student_id === s.id && !p.voided);
+  const rows: { month: string; due: number; paid: number; balance: number }[] = [];
+  for (let i = startIdx; i <= endIdx; i++) {
+    const paid = mine.filter((p) => ymIndex(p.rent_month) === i).reduce((t, p) => t + Number(p.amount), 0);
+    rows.push({ month: monthKeyFromIndex(i), due: Number(s.monthly_rent), paid, balance: Number(s.monthly_rent) - paid });
+  }
+  const totalDue = rows.reduce((t, r) => t + r.due, 0);
+  const totalPaid = mine.reduce((t, p) => t + Number(p.amount), 0);
+  return { rows, totalDue, totalPaid, outstanding: Math.max(0, totalDue - totalPaid) };
+}
+
+function Modal({ title, onClose, children, wide = false, lockBackdrop = false }: any) {
+  return (
+    <div className="fixed inset-0 z-[900] flex items-start sm:items-center justify-center bg-black/70 p-3 overflow-y-auto no-print"
+      onMouseDown={() => { if (!lockBackdrop) onClose(); }}>
+      <div className={`glass-strong rounded-2xl p-5 sm:p-6 w-full ${wide ? "max-w-3xl" : "max-w-md"} my-4 fade-up`}
+        onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button type="button" onClick={onClose} className="flex items-center gap-1 text-sm text-[var(--text-secondary)] border border-white/15 rounded-lg px-3 py-1.5 hover:text-white">
+            Close <X size={14} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function HostelManagement({ core, show, profile }: any) {
+  const [sub, setSub] = useState<"overview" | "students" | "growth">("overview");
+  const [students, setStudents] = useState<HostelStudent[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [presetBed, setPresetBed] = useState("");
+  const [openStudentId, setOpenStudentId] = useState<string | null>(null);
+
+  const hostelAsset = core.assets.find((a: Asset) => a.name.includes("Boys Hostel"));
+  const beds: Unit[] = useMemo(
+    () => core.units.filter((u: Unit) => u.asset_id === hostelAsset?.id && u.unit_type === "bed"),
+    [core.units, hostelAsset?.id]
+  );
+
+  const loadAll = useCallback(async () => {
+    const [s, p] = await Promise.all([
+      supabase.from("hostel_students").select("*").order("student_code"),
+      supabase.from("rent_payments").select("*").not("student_id", "is", null).order("payment_date", { ascending: false }),
+    ]);
+    if (s.error) show("Could not load students: " + s.error.message, "err");
+    setStudents((s.data as any) || []);
+    setPayments(p.data || []);
+    setLoaded(true);
+  }, []); // eslint-disable-line
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const refresh = async () => { await Promise.all([loadAll(), core.reload()]); };
+
+  const openAdd = (bedId = "") => { setPresetBed(bedId); setAddOpen(true); };
+  const openStudent = students.find((s) => s.id === openStudentId);
+
+  if (!loaded) return <div className="text-[var(--text-secondary)] flex items-center gap-2"><Loader2 className="animate-spin" size={16} /> Loading hostel...</div>;
+
+  if (openStudent) {
+    return (
+      <StudentProfile
+        student={openStudent} beds={beds} payments={payments} profile={profile} show={show}
+        onBack={() => setOpenStudentId(null)} onChanged={refresh}
+      />
+    );
+  }
+
+  const tabs: [typeof sub, string][] = [
+    ["overview", "Dashboard"],
+    ["students", `Enrolled Students (${students.filter((s) => s.status === "active").length})`],
+    ["growth", "Growth Report"],
+  ];
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+        <h1 className="text-lg font-semibold">Hostel Management</h1>
+        <button type="button" onClick={() => openAdd()} className="btn-gold rounded-lg px-4 py-2 text-sm flex items-center gap-2">
+          <UserPlus size={16} /> Add Student
+        </button>
+      </div>
+      <div className="text-xs text-[var(--text-secondary)] mb-4">Barkat Market Heights — Boys Hostel</div>
+
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {tabs.map(([k, label]) => (
+          <button key={k} type="button" onClick={() => setSub(k)}
+            className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${sub === k ? "border-[var(--gold)] text-champagne bg-[var(--gold)]/10" : "border-white/10 text-[var(--text-secondary)] hover:text-white"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {!beds.length ? (
+        <div className="glass rounded-xl p-6 text-sm text-[var(--text-secondary)]">
+          No hostel beds found. Run the hostel SQL update in Supabase first (see UPDATE_GUIDE) — it creates all rooms and beds.
+        </div>
+      ) : (
+        <>
+          {sub === "overview" && <HostelOverview beds={beds} students={students} roomTypes={core.roomTypes} onAddBed={openAdd} onOpenStudent={setOpenStudentId} />}
+          {sub === "students" && <HostelStudentsList students={students} beds={beds} payments={payments} onOpen={setOpenStudentId} />}
+          {sub === "growth" && <HostelGrowth beds={beds} students={students} payments={payments} roomTypes={core.roomTypes} />}
+        </>
+      )}
+
+      {addOpen && (
+        <AddStudentModal
+          beds={beds} students={students} presetBedId={presetBed} show={show}
+          onClose={() => setAddOpen(false)}
+          onDone={async () => { setAddOpen(false); await refresh(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DASHBOARD: every room with its beds, filterable All / Vacant / Occupied
+// ---------------------------------------------------------------------------
+function HostelOverview({ beds, students, roomTypes, onAddBed, onOpenStudent }: any) {
+  const [filter, setFilter] = useState<"all" | "vacant" | "occupied">("all");
+
+  const activeByUnit: Record<string, HostelStudent> = {};
+  students.filter((s: HostelStudent) => s.status === "active" && s.unit_id).forEach((s: HostelStudent) => { activeByUnit[s.unit_id as string] = s; });
+
+  const total = beds.length;
+  const occupied = beds.filter((b: Unit) => b.status === "occupied").length;
+  const vacant = beds.filter((b: Unit) => b.status === "vacant").length;
+  const actualRent = beds.filter((b: Unit) => b.status === "occupied").reduce((t: number, b: Unit) => t + Number(b.monthly_rent), 0);
+  const potentialRent = beds.reduce((t: number, b: Unit) => {
+    const rt = roomTypes.find((r: RoomType) => r.id === b.room_type_id);
+    return t + Number(rt ? rt.monthly_rent : b.monthly_rent);
+  }, 0);
+
+  const floors: Record<string, Record<string, Unit[]>> = {};
+  beds.forEach((b: Unit) => {
+    const f = b.floor || "—"; const r = b.room || "—";
+    if (!floors[f]) floors[f] = {};
+    if (!floors[f][r]) floors[f][r] = [];
+    floors[f][r].push(b);
+  });
+
+  const match = (b: Unit) => filter === "all" || (filter === "vacant" ? b.status === "vacant" : b.status === "occupied");
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <Card label="Total Beds" value={String(total)} />
+        <Card label="Occupied" value={String(occupied)} tone="green" />
+        <Card label="Vacant" value={String(vacant)} tone="gray" />
+        <Card label="Occupancy" value={total ? ((occupied / total) * 100).toFixed(1) + "%" : "0%"} />
+        <Card label="Monthly Rent (Occupied)" value={money(actualRent)} tone="green" />
+        <Card label="Rent if Full" value={money(potentialRent)} />
+      </div>
+
+      <div className="flex gap-2 mb-5 flex-wrap items-center">
+        {([["all", `All beds (${total})`], ["vacant", `Vacant (${vacant})`], ["occupied", `Occupied (${occupied})`]] as [typeof filter, string][]).map(([k, label]) => (
+          <button key={k} type="button" onClick={() => setFilter(k)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${filter === k ? "border-[var(--gold)] text-champagne bg-[var(--gold)]/10" : "border-white/10 text-[var(--text-secondary)]"}`}>
+            {label}
+          </button>
+        ))}
+        <span className="text-xs text-[var(--text-secondary)] ml-1">Tap a vacant bed to admit a student · tap an occupied bed to open the student&apos;s profile</span>
+      </div>
+
+      {Object.keys(floors).sort().map((floor) => {
+        const rooms = floors[floor];
+        const floorBeds: Unit[] = Object.values(rooms).flat();
+        const floorOcc = floorBeds.filter((b) => b.status === "occupied").length;
+        const visibleRooms = Object.keys(rooms).sort(roomSort).filter((r) => rooms[r].some(match));
+        return (
+          <div key={floor} className="mb-7">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-champagne">{floor}</h2>
+              <span className="text-xs text-[var(--text-secondary)]">{floorOcc} / {floorBeds.length} beds occupied</span>
+            </div>
+            {!visibleRooms.length ? (
+              <div className="text-sm text-[var(--text-secondary)] glass rounded-xl p-4">No {filter} beds on this floor.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {visibleRooms.map((room) => {
+                  const roomBeds = [...rooms[room]].sort((a, b) => a.name.localeCompare(b.name));
+                  const rt = roomTypes.find((r: RoomType) => r.id === roomBeds[0].room_type_id);
+                  const occ = roomBeds.filter((b) => b.status === "occupied").length;
+                  return (
+                    <div key={room} className="glass rounded-xl p-4 fade-up">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-semibold">Room {room}</div>
+                        <div className="text-[11px] text-[var(--text-secondary)]">{roomBeds.length} beds · {rt ? `${rt.name} · ${money(rt.monthly_rent)}` : ""}</div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {roomBeds.filter(match).map((b) => {
+                          const st = activeByUnit[b.id];
+                          const isOcc = b.status === "occupied";
+                          const isVac = b.status === "vacant";
+                          return (
+                            <button key={b.id} type="button"
+                              onClick={() => { if (st) onOpenStudent(st.id); else if (isVac) onAddBed(b.id); }}
+                              className={`w-full text-left rounded-lg px-3 py-2 text-xs border flex items-center justify-between gap-2 transition-colors ${
+                                isOcc ? "border-[var(--success)]/40 bg-[var(--success)]/10 hover:bg-[var(--success)]/15"
+                                : isVac ? "border-white/15 bg-white/5 text-[var(--text-secondary)] hover:border-[var(--gold)]/60 hover:text-white"
+                                : "border-yellow-500/30 bg-yellow-500/10 text-yellow-300 cursor-default"
+                              }`}>
+                              <span className="font-medium">Bed {bedLetter(b)}</span>
+                              <span className="truncate">
+                                {isOcc ? (st ? `${st.name} (${st.student_code})` : "Occupied") : isVac ? "Vacant · + Add student" : b.status}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-2">{occ} of {roomBeds.length} occupied</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ADD STUDENT
+// ---------------------------------------------------------------------------
+function AddStudentModal({ beds, students, presetBedId, show, onClose, onDone }: any) {
+  const vacantBeds: Unit[] = beds
+    .filter((b: Unit) => b.status === "vacant")
+    .sort((a: Unit, b: Unit) => Number(a.room) - Number(b.room) || a.name.localeCompare(b.name));
+
+  const presetBed = vacantBeds.find((b) => b.id === presetBedId);
+  const [name, setName] = useState("");
+  const [bedId, setBedId] = useState(presetBed ? presetBed.id : "");
+  const [joinDate, setJoinDate] = useState(todayStr());
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
+  const [studentPhone, setStudentPhone] = useState("");
+  const [cnic, setCnic] = useState("");
+  const [rent, setRent] = useState(presetBed ? String(presetBed.monthly_rent) : "25000");
+  const [deposit, setDeposit] = useState("2000");
+  const [contract, setContract] = useState("no");
+  const [police, setPolice] = useState("no");
+  const [notes, setNotes] = useState("");
+  const [recordRent, setRecordRent] = useState(true);
+  const [method, setMethod] = useState("cash");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const maxCode = students.reduce((m: number, s: HostelStudent) => Math.max(m, parseInt((s.student_code || "").replace(/\D/g, ""), 10) || 0), 0);
+  const nextCode = "BMH" + String(maxCode + 1).padStart(2, "0");
+
+  const pickBed = (id: string) => {
+    setBedId(id);
+    const b = vacantBeds.find((x) => x.id === id);
+    if (b) setRent(String(b.monthly_rent));
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (!name.trim()) { setErr("Student name is required."); return; }
+    if (!bedId) { setErr("Please select a vacant bed."); return; }
+    if (!rent || Number(rent) <= 0) { setErr("Monthly rent must be greater than zero."); return; }
+    if (!joinDate) { setErr("Please select the join date."); return; }
+    setBusy(true);
+    const { error } = await supabase.rpc("hostel_enroll_student", {
+      p_name: name.trim(), p_unit_id: bedId, p_join_date: joinDate,
+      p_guardian_name: guardianName.trim() || null, p_guardian_phone: guardianPhone.trim() || null,
+      p_student_phone: studentPhone.trim() || null, p_cnic: cnic.trim() || null,
+      p_monthly_rent: Number(rent), p_security_deposit: Number(deposit || 0),
+      p_contract_signed: contract === "yes", p_police_verification: police === "yes",
+      p_notes: notes.trim() || null, p_record_first_rent: recordRent, p_payment_method: method,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    show(`${name.trim()} enrolled as ${nextCode}.`);
+    onDone();
+  };
+
+  return (
+    <Modal title="New student" onClose={onClose} wide lockBackdrop>
+      <form onSubmit={submit} className="space-y-4">
+        {err && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>}
+        <Field label="Student name">
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} autoFocus />
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Room / bed (vacant only)">
+            <Dropdown value={bedId} onChange={(e: any) => pickBed(e.target.value)} className={selectClass}>
+              <option value="">— select bed —</option>
+              {vacantBeds.map((b) => (
+                <option key={b.id} value={b.id}>{bedFullLabel(b)} — {money(b.monthly_rent)}</option>
+              ))}
+            </Dropdown>
+          </Field>
+          <Field label="Staying since (join date)">
+            <input type="date" value={joinDate} onChange={(e) => setJoinDate(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Guardian name">
+            <input value={guardianName} onChange={(e) => setGuardianName(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Guardian phone">
+            <input value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Student phone">
+            <input value={studentPhone} onChange={(e) => setStudentPhone(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="CNIC">
+            <input value={cnic} onChange={(e) => setCnic(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Monthly rent (Rs)">
+            <input type="number" min="1" value={rent} onChange={(e) => setRent(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Security deposit (Rs)">
+            <input type="number" min="0" value={deposit} onChange={(e) => setDeposit(e.target.value)} className={inputClass} />
+          </Field>
+          <Field label="Contract signed">
+            <Dropdown value={contract} onChange={(e: any) => setContract(e.target.value)} className={selectClass}>
+              <option value="no">No</option><option value="yes">Yes</option>
+            </Dropdown>
+          </Field>
+          <Field label="Police verification">
+            <Dropdown value={police} onChange={(e: any) => setPolice(e.target.value)} className={selectClass}>
+              <option value="no">No</option><option value="yes">Yes</option>
+            </Dropdown>
+          </Field>
+        </div>
+        <Field label="Notes">
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} />
+        </Field>
+
+        <div className="glass rounded-xl p-4 space-y-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={recordRent} onChange={(e) => setRecordRent(e.target.checked)} className="accent-[#d4af37] w-4 h-4" />
+            Rent is taken in advance — record the first month&apos;s rent ({monthLabel(joinDate ? joinDate.slice(0, 7) + "-01" : monthStart())}) as received now
+          </label>
+          {recordRent && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Amount received">
+                <div className={inputClass + " opacity-80"}>{money(Number(rent || 0))}</div>
+              </Field>
+              <Field label="Payment method">
+                <Dropdown value={method} onChange={(e: any) => setMethod(e.target.value)} className={selectClass}>
+                  <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
+                </Dropdown>
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-[var(--text-secondary)]">
+          Student ID will be {nextCode}. Rent is billed every month from the join month. The security deposit is stored on the student&apos;s record and is not counted as income.
+        </div>
+        <div className="flex justify-end gap-3 pt-1">
+          <button type="button" onClick={onClose} className="border border-white/15 rounded-lg px-5 py-2 text-sm text-[var(--text-secondary)] hover:text-white">Cancel</button>
+          <button type="submit" disabled={busy} className="btn-gold rounded-lg px-6 py-2 text-sm disabled:opacity-60 flex items-center gap-2">
+            {busy && <Loader2 className="animate-spin" size={16} />} Save student
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ENROLLED STUDENTS LIST
+// ---------------------------------------------------------------------------
+function HostelStudentsList({ students, beds, payments, onOpen }: any) {
+  const [q, setQ] = useState("");
+  const [view, setView] = useState<"active" | "left" | "all">("active");
+  const bedById: Record<string, Unit> = {};
+  beds.forEach((b: Unit) => { bedById[b.id] = b; });
+
+  const rows = students.filter((s: HostelStudent) => {
+    if (view !== "all" && s.status !== view) return false;
+    const hay = `${s.name} ${s.student_code} ${s.student_phone || ""} ${s.guardian_name || ""} ${s.cnic || ""}`.toLowerCase();
+    return hay.includes(q.toLowerCase());
+  });
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 items-center mb-4">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, phone, CNIC..." className={inputClass + " pl-9"} />
+        </div>
+        {(["active", "left", "all"] as const).map((k) => (
+          <button key={k} type="button" onClick={() => setView(k)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${view === k ? "border-[var(--gold)] text-champagne bg-[var(--gold)]/10" : "border-white/10 text-[var(--text-secondary)]"}`}>
+            {k === "active" ? "Currently staying" : k === "left" ? "Checked out" : "All"}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto glass rounded-lg">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+            <th className="p-3">ID</th><th className="p-3">Student</th><th className="p-3">Room / Bed</th><th className="p-3">Joined</th>
+            <th className="p-3 text-right">Monthly rent</th><th className="p-3 text-right">Outstanding</th><th className="p-3">Status</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((s: HostelStudent) => {
+              const b = s.unit_id ? bedById[s.unit_id] : undefined;
+              const out = buildLedger(s, payments).outstanding;
+              return (
+                <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-white/5 last:border-0 cursor-pointer hover:bg-white/5">
+                  <td className="p-3 text-champagne">{s.student_code}</td>
+                  <td className="p-3 font-medium">{s.name}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{b ? `Room ${b.room} · Bed ${bedLetter(b)}` : "—"}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{s.join_date}</td>
+                  <td className="p-3 text-right">{money(s.monthly_rent)}</td>
+                  <td className={`p-3 text-right ${out > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{out > 0 ? money(out) : "Clear"}</td>
+                  <td className="p-3"><StatusBadge status={s.status === "active" ? "PAID" : "VACANT"} label={s.status === "active" ? "STAYING" : "LEFT"} /></td>
+                </tr>
+              );
+            })}
+            {!rows.length && (
+              <tr><td colSpan={7} className="p-8 text-center text-[var(--text-secondary)]">
+                {students.length ? "No students match this filter." : "No students enrolled yet. Use “Add Student” to admit the first student."}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// STUDENT PROFILE (+ printable student details report)
+// ---------------------------------------------------------------------------
+function StudentProfile({ student, beds, payments, profile, show, onBack, onChanged }: any) {
+  const bed: Unit | undefined = beds.find((b: Unit) => b.id === student.unit_id);
+  const ledger = buildLedger(student, payments);
+  const history = payments.filter((p: any) => p.student_id === student.id);
+  const [payOpen, setPayOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [outOpen, setOutOpen] = useState(false);
+
+  const voidPayment = async (id: string) => {
+    if (!window.confirm("Void this payment? It will stop counting toward totals (kept in the audit trail).")) return;
+    const { error } = await supabase.from("rent_payments").update({ voided: true, updated_by: profile.id }).eq("id", id);
+    if (error) { show(error.message, "err"); return; }
+    show("Payment voided.");
+    onChanged();
+  };
+
+  const detail = (label: string, value: any) => (
+    <div>
+      <div className="text-[11px] uppercase tracking-wide text-[var(--text-secondary)]">{label}</div>
+      <div className="text-sm mt-0.5">{value || "—"}</div>
+    </div>
+  );
+
+  return (
+    <div className="print-area">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5 no-print">
+        <button type="button" onClick={onBack} className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-white">
+          <ArrowLeft size={16} /> Back to hostel
+        </button>
+        <div className="flex gap-2 flex-wrap">
+          {student.status === "active" && (
+            <button type="button" onClick={() => setPayOpen(true)} className="btn-gold rounded-lg px-3 py-1.5 text-sm">Record payment</button>
+          )}
+          <button type="button" onClick={() => setEditOpen(true)} className="border border-white/15 rounded-lg px-3 py-1.5 text-sm hover:border-[var(--gold)]/60">Edit details</button>
+          {student.status === "active" && (
+            <button type="button" onClick={() => setOutOpen(true)} className="border border-red-500/40 text-red-400 rounded-lg px-3 py-1.5 text-sm hover:bg-red-500/10">Check out</button>
+          )}
+          <button type="button" onClick={() => window.print()} className="flex items-center gap-2 border border-white/15 rounded-lg px-3 py-1.5 text-sm hover:border-[var(--gold)]/60">
+            <Printer size={14} /> Print report
+          </button>
+        </div>
+      </div>
+
+      <div className="text-center mb-5 border-b border-white/10 pb-4">
+        <div className="text-xs tracking-widest text-gold">K&amp;J CHESHTI PROPERTIES</div>
+        <div className="text-sm text-[var(--text-secondary)]">Barkat Market Heights — Boys Hostel</div>
+        <div className="text-xs text-[var(--text-secondary)] mt-1">Student Details Report · Generated {new Date().toLocaleString()}</div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <h1 className="text-xl font-semibold">{student.name}</h1>
+        <span className="text-champagne text-sm">{student.student_code}</span>
+        <StatusBadge status={student.status === "active" ? "PAID" : "VACANT"} label={student.status === "active" ? "CURRENTLY STAYING" : "CHECKED OUT"} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <Card label="Total billed" value={money(ledger.totalDue)} />
+        <Card label="Total paid" value={money(ledger.totalPaid)} tone="green" />
+        <Card label="Outstanding" value={money(ledger.outstanding)} tone={ledger.outstanding > 0 ? "red" : "green"} />
+        <Card label="Months billed" value={String(ledger.rows.length)} tone="gray" />
+      </div>
+
+      <div className="glass rounded-xl p-5 mb-6">
+        <div className="text-sm font-semibold text-champagne mb-4">Student details</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {detail("Room / bed", bed ? bedFullLabel(bed) : null)}
+          {detail("Moved in (join date)", student.join_date)}
+          {detail("Monthly rent", money(student.monthly_rent))}
+          {detail("Security deposit", money(student.security_deposit))}
+          {detail("Guardian name", student.guardian_name)}
+          {detail("Guardian phone", student.guardian_phone)}
+          {detail("Student phone", student.student_phone)}
+          {detail("CNIC", student.cnic)}
+          {detail("Contract signed", student.contract_signed ? "Yes" : "No")}
+          {detail("Police verification", student.police_verification ? "Yes" : "No")}
+          {detail("Status", student.status === "active" ? "Currently staying" : `Checked out${student.left_date ? " on " + student.left_date : ""}`)}
+          {detail("Notes", student.notes)}
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <div className="text-sm font-semibold text-champagne mb-3">Monthly rent ledger</div>
+        <div className="overflow-x-auto glass rounded-lg">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+              <th className="p-3">Month</th><th className="p-3 text-right">Rent due</th><th className="p-3 text-right">Paid</th><th className="p-3 text-right">Balance</th><th className="p-3">Status</th>
+            </tr></thead>
+            <tbody>
+              {ledger.rows.map((r) => (
+                <tr key={r.month} className="border-b border-white/5 last:border-0">
+                  <td className="p-3">{monthLabel(r.month)}</td>
+                  <td className="p-3 text-right">{money(r.due)}</td>
+                  <td className="p-3 text-right text-[var(--success)]">{money(r.paid)}</td>
+                  <td className="p-3 text-right">{r.balance > 0 ? money(r.balance) : "—"}</td>
+                  <td className="p-3">
+                    {r.balance <= 0 ? <StatusBadge status="PAID" /> : r.paid > 0 ? <StatusBadge status="PENDING" label="PARTIAL" /> : <StatusBadge status="OVERDUE" label="DUE" />}
+                  </td>
+                </tr>
+              ))}
+              {!ledger.rows.length && <tr><td colSpan={5} className="p-6 text-center text-[var(--text-secondary)]">Billing starts from the join month.</td></tr>}
+            </tbody>
+            {ledger.rows.length > 0 && (
+              <tfoot><tr className="border-t border-white/10 font-semibold">
+                <td className="p-3">Total</td><td className="p-3 text-right">{money(ledger.totalDue)}</td>
+                <td className="p-3 text-right text-[var(--success)]">{money(ledger.totalPaid)}</td>
+                <td className="p-3 text-right">{money(ledger.outstanding)}</td><td />
+              </tr></tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <div className="text-sm font-semibold text-champagne mb-3">Payment history</div>
+        <div className="overflow-x-auto glass rounded-lg">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+              <th className="p-3">Date received</th><th className="p-3">For month</th><th className="p-3">Method</th><th className="p-3 text-right">Amount</th><th className="p-3">Notes</th><th className="p-3 no-print" />
+            </tr></thead>
+            <tbody>
+              {history.map((p: any) => (
+                <tr key={p.id} className={`border-b border-white/5 last:border-0 ${p.voided ? "opacity-40 line-through" : ""}`}>
+                  <td className="p-3">{p.payment_date}</td>
+                  <td className="p-3">{monthLabel(p.rent_month)}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{p.payment_method === "cash" ? "Cash" : "Bank Transfer"}</td>
+                  <td className="p-3 text-right text-[var(--success)]">{money(p.amount)}</td>
+                  <td className="p-3 text-[var(--text-secondary)]">{p.voided ? "VOIDED" : p.notes || "—"}</td>
+                  <td className="p-3 no-print">
+                    {!p.voided && <button type="button" onClick={() => voidPayment(p.id)} className="text-xs text-red-400 hover:underline">Void</button>}
+                  </td>
+                </tr>
+              ))}
+              {!history.length && <tr><td colSpan={6} className="p-6 text-center text-[var(--text-secondary)]">No payments recorded yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {payOpen && <RecordPaymentModal student={student} ledger={ledger} profile={profile} show={show} onClose={() => setPayOpen(false)} onDone={() => { setPayOpen(false); onChanged(); }} />}
+      {editOpen && <EditStudentModal student={student} show={show} onClose={() => setEditOpen(false)} onDone={() => { setEditOpen(false); onChanged(); }} />}
+      {outOpen && <CheckoutModal student={student} show={show} onClose={() => setOutOpen(false)} onDone={() => { setOutOpen(false); onChanged(); }} />}
+    </div>
+  );
+}
+
+function RecordPaymentModal({ student, ledger, profile, show, onClose, onDone }: any) {
+  const firstUnpaid = ledger.rows.find((r: any) => r.balance > 0);
+  const [month, setMonth] = useState((firstUnpaid ? firstUnpaid.month : monthStart()).slice(0, 7));
+  const [amount, setAmount] = useState(String(firstUnpaid ? firstUnpaid.balance : student.monthly_rent));
+  const [method, setMethod] = useState("cash");
+  const [date, setDate] = useState(todayStr());
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (!student.unit_id) { setErr("This student has no bed assigned."); return; }
+    if (!amount || Number(amount) <= 0) { setErr("Amount must be greater than zero."); return; }
+    setBusy(true);
+    const { error } = await supabase.from("rent_payments").insert({
+      unit_id: student.unit_id, student_id: student.id, rent_month: month + "-01", amount: Number(amount),
+      payment_method: method, payment_date: date, notes: notes.trim() || null, created_by: profile.id,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    show("Payment recorded.");
+    onDone();
+  };
+
+  return (
+    <Modal title={`Record payment — ${student.name}`} onClose={onClose} lockBackdrop>
+      <form onSubmit={submit} className="space-y-3">
+        {err && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Rent for month"><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className={inputClass} required /></Field>
+          <Field label="Amount (Rs)"><input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputClass} required /></Field>
+          <Field label="Payment method">
+            <Dropdown value={method} onChange={(e: any) => setMethod(e.target.value)} className={selectClass}>
+              <option value="cash">Cash</option><option value="bank_transfer">Bank Transfer</option>
+            </Dropdown>
+          </Field>
+          <Field label="Date received"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} required /></Field>
+        </div>
+        <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={inputClass} /></Field>
+        <SubmitBtn busy={busy} label="Save payment" />
+      </form>
+    </Modal>
+  );
+}
+
+function EditStudentModal({ student, show, onClose, onDone }: any) {
+  const [name, setName] = useState(student.name);
+  const [guardianName, setGuardianName] = useState(student.guardian_name || "");
+  const [guardianPhone, setGuardianPhone] = useState(student.guardian_phone || "");
+  const [studentPhone, setStudentPhone] = useState(student.student_phone || "");
+  const [cnic, setCnic] = useState(student.cnic || "");
+  const [rent, setRent] = useState(String(student.monthly_rent));
+  const [deposit, setDeposit] = useState(String(student.security_deposit));
+  const [contract, setContract] = useState(student.contract_signed ? "yes" : "no");
+  const [police, setPolice] = useState(student.police_verification ? "yes" : "no");
+  const [notes, setNotes] = useState(student.notes || "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (!name.trim()) { setErr("Name is required."); return; }
+    if (!rent || Number(rent) <= 0) { setErr("Monthly rent must be greater than zero."); return; }
+    setBusy(true);
+    const { error } = await supabase.rpc("hostel_update_student", {
+      p_id: student.id, p_name: name.trim(), p_guardian_name: guardianName.trim() || null,
+      p_guardian_phone: guardianPhone.trim() || null, p_student_phone: studentPhone.trim() || null,
+      p_cnic: cnic.trim() || null, p_monthly_rent: Number(rent), p_security_deposit: Number(deposit || 0),
+      p_contract_signed: contract === "yes", p_police_verification: police === "yes", p_notes: notes.trim() || null,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    show("Student details updated.");
+    onDone();
+  };
+
+  return (
+    <Modal title={`Edit — ${student.name}`} onClose={onClose} wide lockBackdrop>
+      <form onSubmit={submit} className="space-y-4">
+        {err && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>}
+        <Field label="Student name"><input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} /></Field>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Field label="Guardian name"><input value={guardianName} onChange={(e) => setGuardianName(e.target.value)} className={inputClass} /></Field>
+          <Field label="Guardian phone"><input value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} className={inputClass} /></Field>
+          <Field label="Student phone"><input value={studentPhone} onChange={(e) => setStudentPhone(e.target.value)} className={inputClass} /></Field>
+          <Field label="CNIC"><input value={cnic} onChange={(e) => setCnic(e.target.value)} className={inputClass} /></Field>
+          <Field label="Monthly rent (Rs)"><input type="number" min="1" value={rent} onChange={(e) => setRent(e.target.value)} className={inputClass} /></Field>
+          <Field label="Security deposit (Rs)"><input type="number" min="0" value={deposit} onChange={(e) => setDeposit(e.target.value)} className={inputClass} /></Field>
+          <Field label="Contract signed">
+            <Dropdown value={contract} onChange={(e: any) => setContract(e.target.value)} className={selectClass}>
+              <option value="no">No</option><option value="yes">Yes</option>
+            </Dropdown>
+          </Field>
+          <Field label="Police verification">
+            <Dropdown value={police} onChange={(e: any) => setPolice(e.target.value)} className={selectClass}>
+              <option value="no">No</option><option value="yes">Yes</option>
+            </Dropdown>
+          </Field>
+        </div>
+        <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={inputClass} /></Field>
+        <div className="text-xs text-[var(--text-secondary)]">Changing the monthly rent applies to the student&apos;s whole ledger and to the hostel&apos;s expected income from now on.</div>
+        <SubmitBtn busy={busy} label="Save changes" />
+      </form>
+    </Modal>
+  );
+}
+
+function CheckoutModal({ student, show, onClose, onDone }: any) {
+  const [date, setDate] = useState(todayStr());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(""); setBusy(true);
+    const { error } = await supabase.rpc("hostel_checkout_student", { p_id: student.id, p_left_date: date });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    show(`${student.name} checked out — bed is vacant again.`);
+    onDone();
+  };
+
+  return (
+    <Modal title={`Check out — ${student.name}`} onClose={onClose} lockBackdrop>
+      <form onSubmit={submit} className="space-y-4">
+        {err && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{err}</div>}
+        <div className="text-sm text-[var(--text-secondary)]">
+          The bed becomes vacant and rent stops being billed after the check-out month. Payment history is kept.
+          Any outstanding balance stays visible on the student&apos;s profile.
+        </div>
+        <Field label="Check-out date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} required /></Field>
+        <SubmitBtn busy={busy} label="Confirm check-out" />
+      </form>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GROWTH REPORT — rooms & beds
+// ---------------------------------------------------------------------------
+function HostelGrowth({ beds, students, payments, roomTypes }: any) {
+  const total = beds.length;
+  const occupiedNow = beds.filter((b: Unit) => b.status === "occupied").length;
+  const rooms: Record<string, Unit[]> = {};
+  beds.forEach((b: Unit) => { const r = b.room || "—"; if (!rooms[r]) rooms[r] = []; rooms[r].push(b); });
+  const roomKeys = Object.keys(rooms).sort(roomSort);
+
+  const floorMap: Record<string, { beds: number; occ: number; rooms: number }> = {};
+  roomKeys.forEach((r) => {
+    const f = rooms[r][0].floor || "—";
+    if (!floorMap[f]) floorMap[f] = { beds: 0, occ: 0, rooms: 0 };
+    floorMap[f].rooms += 1;
+    floorMap[f].beds += rooms[r].length;
+    floorMap[f].occ += rooms[r].filter((b) => b.status === "occupied").length;
+  });
+
+  const potentialRent = beds.reduce((t: number, b: Unit) => {
+    const rt = roomTypes.find((r: RoomType) => r.id === b.room_type_id);
+    return t + Number(rt ? rt.monthly_rent : b.monthly_rent);
+  }, 0);
+  const actualRent = beds.filter((b: Unit) => b.status === "occupied").reduce((t: number, b: Unit) => t + Number(b.monthly_rent), 0);
+
+  // month-by-month series from first admission to now
+  const nowIdx = nowMonthIndex();
+  const startIdx = students.length ? Math.min(...students.map((s: HostelStudent) => ymIndex(s.join_date))) : nowIdx;
+  const series: any[] = [];
+  for (let i = Math.max(startIdx, nowIdx - 23); i <= nowIdx; i++) {
+    const inHostel = students.filter((s: HostelStudent) => ymIndex(s.join_date) <= i && (!s.left_date || ymIndex(s.left_date) > i));
+    series.push({
+      idx: i,
+      occupied: inHostel.length,
+      pct: total ? (inHostel.length / total) * 100 : 0,
+      admissions: students.filter((s: HostelStudent) => ymIndex(s.join_date) === i).length,
+      checkouts: students.filter((s: HostelStudent) => s.left_date && ymIndex(s.left_date) === i).length,
+      rentRoll: inHostel.reduce((t: number, s: HostelStudent) => t + Number(s.monthly_rent), 0),
+      collected: payments.filter((p: any) => !p.voided && ymIndex(p.rent_month) === i).reduce((t: number, p: any) => t + Number(p.amount), 0),
+    });
+  }
+
+  const idealBeds = Math.ceil(total * IDEAL_OCCUPANCY);
+
+  return (
+    <div className="print-area">
+      <div className="flex items-center justify-between mb-4 no-print">
+        <h2 className="font-semibold">Rooms &amp; Beds — Growth Report</h2>
+        <button type="button" onClick={() => window.print()} className="flex items-center gap-2 btn-gold text-sm px-3 py-1.5 rounded-lg"><Printer size={14} /> Print</button>
+      </div>
+      <div className="text-center mb-5 border-b border-white/10 pb-3">
+        <div className="text-xs tracking-widest text-gold">K&amp;J CHESHTI PROPERTIES</div>
+        <div className="text-sm text-[var(--text-secondary)]">Barkat Market Heights — Boys Hostel · Growth Report</div>
+        <div className="text-[11px] text-[var(--text-secondary)]">Generated {new Date().toLocaleString()}</div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <Card label="Rooms" value={String(roomKeys.length)} tone="gray" />
+        <Card label="Total beds" value={String(total)} />
+        <Card label="Occupied beds" value={`${occupiedNow} (${total ? ((occupiedNow / total) * 100).toFixed(1) : 0}%)`} tone="green" />
+        <Card label="Target (70%)" value={`${idealBeds} beds by Mar 2027`} />
+        <Card label="Rent now" value={money(actualRent)} tone="green" />
+        <Card label="Rent if full" value={money(potentialRent)} />
+        <Card label="Ideal rent (70%)" value={money(Math.round(potentialRent * IDEAL_OCCUPANCY))} />
+        <Card label="Beds still vacant" value={String(beds.filter((b: Unit) => b.status === "vacant").length)} tone="gray" />
+      </div>
+
+      <div className="glass rounded-xl p-5 mb-6">
+        <div className="text-sm font-semibold text-champagne mb-1">Occupancy growth by month</div>
+        <div className="text-xs text-[var(--text-secondary)] mb-4">Gold line = 70% target</div>
+        {!students.length ? (
+          <div className="text-sm text-[var(--text-secondary)] py-6 text-center">No admissions recorded yet — growth will appear here as students are enrolled.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="relative h-44 flex items-end gap-2 min-w-[320px] border-b border-white/10 pr-2">
+              <div className="absolute left-0 right-0 border-t border-dashed border-[var(--gold)]/70" style={{ bottom: `${IDEAL_OCCUPANCY * 100}%` }} />
+              {series.map((m) => (
+                <div key={m.idx} className="flex-1 min-w-[34px] h-full flex flex-col justify-end items-center">
+                  <div className="text-[10px] text-[var(--text-secondary)] mb-1">{m.occupied}</div>
+                  <div className="w-full max-w-[38px] rounded-t-md btn-gold" style={{ height: `${Math.max(2, m.pct)}%`, boxShadow: "none" }} />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 min-w-[320px] pr-2 mt-1">
+              {series.map((m) => <div key={m.idx} className="flex-1 min-w-[34px] text-center text-[10px] text-[var(--text-secondary)]">{shortMonthLabel(m.idx)}</div>)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {students.length > 0 && (
+        <div className="mb-6">
+          <div className="text-sm font-semibold text-champagne mb-3">Monthly growth table</div>
+          <div className="overflow-x-auto glass rounded-lg">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+                <th className="p-3">Month</th><th className="p-3 text-right">New admissions</th><th className="p-3 text-right">Check-outs</th>
+                <th className="p-3 text-right">Beds occupied</th><th className="p-3 text-right">Occupancy</th><th className="p-3 text-right">Rent roll</th><th className="p-3 text-right">Rent collected</th>
+              </tr></thead>
+              <tbody>
+                {[...series].reverse().map((m) => (
+                  <tr key={m.idx} className="border-b border-white/5 last:border-0">
+                    <td className="p-3">{shortMonthLabel(m.idx)}</td>
+                    <td className="p-3 text-right">{m.admissions}</td><td className="p-3 text-right">{m.checkouts}</td>
+                    <td className="p-3 text-right">{m.occupied} / {total}</td><td className="p-3 text-right">{m.pct.toFixed(1)}%</td>
+                    <td className="p-3 text-right">{money(m.rentRoll)}</td><td className="p-3 text-right text-[var(--success)]">{money(m.collected)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6">
+        <div className="text-sm font-semibold text-champagne mb-3">By floor</div>
+        <div className="overflow-x-auto glass rounded-lg">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+              <th className="p-3">Floor</th><th className="p-3 text-right">Rooms</th><th className="p-3 text-right">Beds</th><th className="p-3 text-right">Occupied</th><th className="p-3 text-right">Vacant</th><th className="p-3 text-right">Occupancy</th>
+            </tr></thead>
+            <tbody>
+              {Object.keys(floorMap).sort().map((f) => (
+                <tr key={f} className="border-b border-white/5 last:border-0">
+                  <td className="p-3">{f}</td><td className="p-3 text-right">{floorMap[f].rooms}</td><td className="p-3 text-right">{floorMap[f].beds}</td>
+                  <td className="p-3 text-right text-[var(--success)]">{floorMap[f].occ}</td><td className="p-3 text-right">{floorMap[f].beds - floorMap[f].occ}</td>
+                  <td className="p-3 text-right">{floorMap[f].beds ? ((floorMap[f].occ / floorMap[f].beds) * 100).toFixed(1) : 0}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div className="text-sm font-semibold text-champagne mb-3">By room</div>
+        <div className="overflow-x-auto glass rounded-lg">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[var(--text-secondary)] text-xs border-b border-white/10">
+              <th className="p-3">Room</th><th className="p-3">Floor</th><th className="p-3 text-right">Beds</th><th className="p-3 text-right">Rent / bed</th>
+              <th className="p-3 text-right">Occupied</th><th className="p-3 text-right">Vacant</th><th className="p-3 text-right">Occupancy</th>
+            </tr></thead>
+            <tbody>
+              {roomKeys.map((r) => {
+                const rb = rooms[r];
+                const occ = rb.filter((b) => b.status === "occupied").length;
+                const rt = roomTypes.find((x: RoomType) => x.id === rb[0].room_type_id);
+                return (
+                  <tr key={r} className="border-b border-white/5 last:border-0">
+                    <td className="p-3 font-medium">{r}</td><td className="p-3 text-[var(--text-secondary)]">{rb[0].floor}</td>
+                    <td className="p-3 text-right">{rb.length}</td><td className="p-3 text-right">{money(rt ? rt.monthly_rent : rb[0].monthly_rent)}</td>
+                    <td className="p-3 text-right text-[var(--success)]">{occ}</td><td className="p-3 text-right">{rb.length - occ}</td>
+                    <td className="p-3 text-right">{((occ / rb.length) * 100).toFixed(0)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

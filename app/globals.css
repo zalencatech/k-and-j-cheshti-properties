@@ -235,7 +235,18 @@ button:hover .nav-icon-anim { transform: scale(1.15) rotate(-4deg); }
 }
 
 @media print {
-  body { background: white !important; color: black !important; }
+  html, body { background: white !important; color: black !important; min-height: 0 !important; }
   .no-print { display: none !important; }
-  .print-area, .print-area * { color: black !important; background: white !important; backdrop-filter: none !important; box-shadow: none !important; animation: none !important; }
+  main { padding: 0 !important; overflow: visible !important; }
+  .print-area, .print-area * {
+    color: black !important; background: white !important; backdrop-filter: none !important;
+    box-shadow: none !important; animation: none !important; text-shadow: none !important;
+  }
+  .print-area .glass, .print-area .glass-strong { border: 1px solid #cfcfcf !important; transform: none !important; }
+  .print-area table { border-collapse: collapse; }
+  .print-area tr { border-bottom: 1px solid #dcdcdc !important; }
+  .print-area thead tr { border-bottom: 2px solid #999 !important; }
+  .print-area .btn-gold { background: #ccc !important; }
+  .print-area .btn-gold::before { display: none !important; }
+  .print-area tr, .print-area .glass { break-inside: avoid; }
 }
